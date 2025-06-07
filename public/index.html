@@ -161,7 +161,7 @@
         const marker = new L.marker(location, {
             icon: vehicle_icon,
             rotationOrigin: "center",
-            zIndexOffset: 10,
+            zIndexOffset: 10000, // valeur élevée
             interactive: false
         }).addTo(map);
         marker.bindTooltip(`SN${id}`, {
