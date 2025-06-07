@@ -32,6 +32,7 @@ app.get("/drone-position", (req, res) => {
 });
 
 // Endpoint pour recevoir une mission individuelle (type waypoints)
+// Endpoint pour recevoir une mission individuelle (type waypoints)
 app.post("/drone-mission", (req, res) => {
     const { sysid } = req.body;
     if (!sysid) {
@@ -41,6 +42,12 @@ app.post("/drone-mission", (req, res) => {
         ...req.body,
         receivedAt: Date.now()
     };
+    // Ajout : stocker aussi dans le tableau missions
+    missions.push({
+        waypoints: req.body.waypoints,
+        sysid: req.body.sysid,
+        timestamp: Date.now()
+    });
     fs.writeFileSync(MISSION_FILE, JSON.stringify(missionsBySysid));
     console.log("Mission reçue pour sysid", sysid, ":", req.body);
     res.sendStatus(200);
