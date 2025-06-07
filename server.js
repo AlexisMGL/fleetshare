@@ -36,7 +36,10 @@ app.post("/drone-mission", (req, res) => {
     if (!sysid) {
         return res.status(400).send("sysid manquant");
     }
-    missions[sysid] = req.body;
+    missions[sysid] = {
+        ...req.body,
+        receivedAt: Date.now()
+    };
     fs.writeFileSync(MISSION_FILE, JSON.stringify(missions));
     console.log("Mission reçue pour sysid", sysid, ":", req.body);
     res.sendStatus(200);
@@ -50,6 +53,14 @@ app.get("/drone-mission/:sysid", (req, res) => {
     } else {
         res.status(204).send();
     }
+});
+
+app.get("/drone-missions/recent", (req, res) => {
+    const now = Date.now();
+    const fourHours = 4 * 60 * 60 * 1000;
+    const recentMissions = Object.values(missions)
+        .filter(m => m.receivedAt && (now - m.receivedAt) <= fourHours);
+    res.json(recentMissions);
 });
 
 app.use(express.static("public")); // Sert tout ce qui se trouve dans /public

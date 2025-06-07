@@ -268,5 +268,32 @@
             console.error("Erreur fetch position drone :", e);
         }
     }, 2000);
+
+    function parseWaypoints(waypointsStr) {
+        // Ex: "WP1: -154207169,497246178 WP2: ..."
+        return waypointsStr.split("WP").slice(1).map(wp => {
+            const [label, coords] = wp.split(":");
+            const [lat, lon] = coords.trim().split(",").map(Number);
+            return {
+                label: "WP" + label.trim(),
+                lat: lat / 1e7,
+                lon: lon / 1e7
+            };
+        });
+    }
+
+    // Exemple d’utilisation après avoir fetch les missions récentes
+    fetch("/drone-missions/recent")
+        .then(res => res.json())
+        .then(missions => {
+            missions.forEach(m => {
+                if (m.waypoints) {
+                    const waypoints = parseWaypoints(m.waypoints);
+                    // Affiche ou utilise les waypoints ici
+                    console.log("Waypoints pour sysid", m.sysid, waypoints);
+                }
+            });
+        });
+
 </script>
 </html>
