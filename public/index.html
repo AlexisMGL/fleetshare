@@ -239,10 +239,16 @@
         else if (msg._id === 87) update_position_target(msg);
     }
 
-    window.addEventListener('message', e => {
-        const data = e.data;
-        if (data.options) options = data.options;
-        if (data.MAVLink) handle_msg(data.MAVLink);
-    });
+    // Appel régulier pour récupérer la dernière position
+    setInterval(async () => {
+        try {
+            const response = await fetch('/drone-position');
+            if (!response.ok) return;
+            const msg = await response.json();
+            update_pos(msg);
+        } catch (e) {
+            console.error("Erreur fetch position drone :", e);
+        }
+    }, 2000);
 </script>
 </html>
