@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <title>Suivi Drone sur Windy</title>
+
+    <!-- Leaflet core -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+          integrity="sha256-sA+e2v/8EcCm3Ob7nqDkNCqd7Ncdlnu+GY6FjLVStOo="
+          crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+            integrity="sha256-Bu60JZIRvBx3tp6Yg8aC5p/MbAgb4p4MwEselbKfkJo="
+            crossorigin=""></script>
+
+    <!-- Windy -->
+    <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
+
+    <!-- Plugin pour faire pivoter le marqueur -->
+    <script src="https://unpkg.com/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
+
+    <style>
+        html, body, #windy {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 10px;
+            border: 5px solid #c8c8c8;
+            border-radius: 10px;
+            background: #fff;
+            padding: 5px;
+        }
+
+        #loading {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 10px;
+            border: 5px solid #c8c8c8;
+            border-radius: 10px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div id="windy"></div>
+    <div id="loading">Loading map…</div>
+
+    <script>
+        // ==== CONFIG WINDY ====
+        const windy_options = {
+            key: 'VOTRE_API_KEY_WINDY',  // ← Remplacez par votre clé Windy
+            lat: -18.91368,
+            lon: 47.53613,
+            zoom: 7,
+        };
+
+        let map, loadingDiv = document.getElementById('loading');
+        let droneMarker = null;
+
+        // Initialisation de Windy
+        windyInit(windy_options, windyAPI => {
+            map = windyAPI.map;
+            map.options.maxZoom = 17;
+            // Enlever le message
+            loadingDiv.style.display = 'none';
+
+            // Cercle rouge / bleu / vert
+            L.circle([-23.3470407, 47.5962614], { color: 'red', fillOpacity: 0, radius: 120000 }).addTo(map);
+            L.circle([-22.9120275, 44.5280449], { color: 'blue', fillOpacity: 0, radius: 120000 }).addTo(map);
+            L.circle([-19.672116, 47.314187], { color: 'green', fillOpacity: 0, radius: 120000 }).addTo(map);
+
+            // Barre d'échelle
+            L.control.scale().addTo(map);
+
+            // Une fois la map prête, on lance le polling
+            setInterval(fetchAndUpdateDrone, 1000);
+            // fetch initial
+            fetchAndUpdateDrone();
+        });
+
+        // Icône SVG pour le drone
+        function createDroneIcon(yaw) {
+            return L.divIcon({
+                html: `<svg width="40" height="40" viewBox="0 0 576 512"
+                       style="transform: rotate(${yaw - 90}deg);">
+                       <path fill="#ff0000" d="M482.3 192c34.2 0 93.7 29 ..."/>
+                     </svg>`,
+                className: '',
+                iconSize: [40, 40],
+            });
+        }
+
+        // Fonction de récupération et mise à jour
+        async function fetchAndUpdateDrone() {
+            try {
+                const res = await fetch('/drone-position');
+                if (res.status === 200) {
+                    const { lat, lon, yaw } = await res.json();
+
+                    // Création du marqueur la première fois
+                    if (!droneMarker) {
+                        droneMarker = L.marker([lat, lon], {
+                            icon: createDroneIcon(yaw),
+                            rotationOrigin: 'center'
+                        }).addTo(map);
+                        droneMarker.bindPopup('Drone connecté');
+                    }
+                    // Sinon on met à jour position + rotation
+                    else {
+                        droneMarker.setLatLng([lat, lon]);
+                        droneMarker.setIcon(createDroneIcon(yaw));
+                    }
+                }
+            }
+            catch (err) {
+                console.error('Erreur fetch /drone-position :', err);
+            }
+        }
+    </script>
+</body>
+</html>
