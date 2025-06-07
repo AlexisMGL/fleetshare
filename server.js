@@ -2,6 +2,16 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
+// Ajoute en haut du fichier
+const fs = require("fs");
+const MISSION_FILE = "missions.json";
+
+// Chargement des missions au démarrage
+let missions = {};
+if (fs.existsSync(MISSION_FILE)) {
+    missions = JSON.parse(fs.readFileSync(MISSION_FILE, "utf-8"));
+}
+
 // Variable pour conserver la dernière position
 let latestPosition = null;
 
@@ -17,6 +27,28 @@ app.get("/drone-position", (req, res) => {
         res.json(latestPosition);
     } else {
         res.status(204).send(); // Pas de contenu si aucune position reçue
+    }
+});
+
+// Endpoint pour recevoir une mission (type waypoints)
+app.post("/drone-mission", (req, res) => {
+    const { sysid } = req.body;
+    if (!sysid) {
+        return res.status(400).send("sysid manquant");
+    }
+    missions[sysid] = req.body;
+    fs.writeFileSync(MISSION_FILE, JSON.stringify(missions));
+    console.log("Mission reçue pour sysid", sysid, ":", req.body);
+    res.sendStatus(200);
+});
+
+// Endpoint pour fournir la mission d'un sysid
+app.get("/drone-mission/:sysid", (req, res) => {
+    const sysid = req.params.sysid;
+    if (missions[sysid]) {
+        res.json(missions[sysid]);
+    } else {
+        res.status(204).send();
     }
 });
 
