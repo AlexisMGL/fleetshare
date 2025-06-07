@@ -278,7 +278,7 @@
         function parseWaypoints(waypointsStr) {
             return waypointsStr.split("WP").slice(1).map(wp => {
                 const [label, coords] = wp.split(":");
-                const [lon, lat] = coords.trim().split(",").map(Number);
+                const [lat, lon] = coords.trim().split(",").map(Number);
                 return {
                     label: "WP" + label.trim(),
                     lat: lat / 1e7,
