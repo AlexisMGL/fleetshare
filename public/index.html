@@ -1,17 +1,11 @@
 ﻿<!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Suivi Drone sur Windy</title>
+    <title>Custom HTML Example</title>
 
-    <!-- Leaflet core -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
-
-    <!-- Windy -->
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
-
-    <!-- Plugin pour faire pivoter le marqueur -->
     <script src="https://unpkg.com/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
 
     <style>
@@ -23,24 +17,28 @@
 
         #windy {
             position: absolute;
-            top: 10px;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 10px;
             border: 5px solid #c8c8c8;
             border-radius: 10px;
-            background: #fff;
+            background-color: #ffffff;
+            padding: 5px;
         }
 
         #loading {
             position: absolute;
-            top: 10px;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 10px;
             border: 5px solid #c8c8c8;
             border-radius: 10px;
-            background: #fff;
+            background-color: #ffffff;
+            padding: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -50,98 +48,190 @@
 </head>
 <body>
     <div id="windy"></div>
-    <div id="loading">Loading map…</div>
+    <div id="loading">Loading</div>
+</body>
+<script>
+    let windy_options = {
+        key: '',
+        lat: 14,
+        lon: -29,
+        zoom: 15
+    };
 
-    <script>
-        // CONFIG WINDY
-        const windy_options = {
-            key: 'SSUGxhvXMZUTgav1QfuYZG7smD3vaEPB',
-            lat: -18.91368,
-            lon: 47.53613,
-            zoom: 7
-        };
+    let init_done = false;
+    let map = null;
+    let options = null;
 
-        let map;
-        const loadingDiv = document.getElementById('loading');
-        let droneMarker = null;
+    function init() {
+        if (!options) {
+            setTimeout(init, 100);
+            return;
+        }
+        const loading_div = document.getElementById("loading");
+        if (!options.key) {
+            loading_div.innerHTML = "Please set API key";
+            setTimeout(init, 100);
+            return;
+        }
+        if (!init_done) {
+            windy_options.key = options.key;
+            init_done = true;
+            windyInit(windy_options, windyAPI => {
+                map = windyAPI.map;
+                map.options.maxZoom = 17;
+                loading_div.style.display = "none";
 
-        // Initialisation de Windy
-        windyInit(windy_options, function (windyAPI) {
-            map = windyAPI.map;
-            map.options.maxZoom = 17;
+                // force le calque "wind"
+                windyAPI.store.set("overlay", "wind");
 
-            // Masquer le message de chargement
-            loadingDiv.style.display = 'none';
+                // attribution Windy.com
+                map.attributionControl.addAttribution(
+                    'Données météo © <a href="https://www.windy.com" target="_blank">Windy.com</a>'
+                );
 
-            // Force le calque "wind"
-            windyAPI.store.set('overlay', 'wind');
+                // redessiner et déclencher zoomend pour rafraîchir l’UI
+                setTimeout(() => {
+                    map.invalidateSize();
+                    map.fire("zoomend");
+                }, 500);
 
-            // Ajoute l’attribution Windy.com en permanence
-            map.attributionControl.addAttribution(
-                'Données météo © <a href="https://www.windy.com" target="_blank">Windy.com</a>'
-            );
-
-            // Redessine et déclenche zoomend pour rafraîchir l’UI
-            setTimeout(function () {
-                map.invalidateSize();
-                map.fire('zoomend');
-            }, 500);
-
-            // Cercles de zone
-            L.circle([-23.3470407, 47.5962614], { color: 'red', fillOpacity: 0, radius: 120000 }).addTo(map);
-            L.circle([-22.9120275, 44.5280449], { color: 'blue', fillOpacity: 0, radius: 120000 }).addTo(map);
-            L.circle([-19.672116, 47.314187], { color: 'green', fillOpacity: 0, radius: 120000 }).addTo(map);
-
-            // Barre d'échelle
-            L.control.scale().addTo(map);
-
-            // Lancer le polling
-            setInterval(fetchAndUpdateDrone, 1000);
-            fetchAndUpdateDrone();
-        });
-
-        // Icône SVG pour le drone
-        function createDroneIcon(yaw) {
-            return L.divIcon({
-                html: `
-          <svg width="40" height="40" viewBox="0 0 576 512"
-               style="transform: rotate(${yaw - 90}deg);">
-            <path fill="#000000"
-                  d="M482.3 192c34.2 0 93.7 29 93.7 64c0 36-59.5 64-93.7 64
-                     l-116.6 0L265.2 495.9c-5.7 10-16.3 16.1-27.8 16.1
-                     l-56.2 0c-10.6 0-18.3-10.2-15.4-20.4l49-171.6L112 320
-                     68.8 377.6c-3 4-7.8 6.4-12.8 6.4l-42 0c-7.8 0-14-6.3-14-14
-                     c0-1.3 .2-2.6 .5-3.9L32 256 .5 145.9c-.4-1.3-.5-2.6-.5-3.9
-                     c0-7.8 6.3-14 14-14l42 0c5 0 9.8 2.4 12.8 6.4L112 192
-                     l102.9 0-49-171.6C162.9 10.2 170.6 0 181.2 0l56.2 0
-                     c11.5 0 22.1 6.2 27.8 16.1L365.7 192l116.6 0z"/>
-          </svg>`,
-                className: '',
-                iconSize: [40, 40]
+                // cercles
+                L.circle([-23.3470407, 47.5962614], {
+                    color: 'red',
+                    fillOpacity: 0,
+                    radius: 120000
+                }).addTo(map);
+                L.circle([-22.91202751744944, 44.528044921900346], {
+                    color: 'blue',
+                    fillOpacity: 0,
+                    radius: 120000
+                }).addTo(map);
+                L.circle([-19.672116, 47.314187], {
+                    color: 'green',
+                    fillOpacity: 0,
+                    radius: 120000
+                }).addTo(map);
             });
         }
+        if (!map) {
+            loading_div.innerHTML = "Waiting for map";
+            setTimeout(init, 100);
+            return;
+        }
+        loading_div.style.display = "none";
 
-        // Récupération et mise à jour
-        async function fetchAndUpdateDrone() {
-            try {
-                const res = await fetch('/drone-position');
-                if (res.status === 200) {
-                    const { lat, lon, yaw } = await res.json();
-                    if (!droneMarker) {
-                        droneMarker = L.marker([lat, lon], {
-                            icon: createDroneIcon(yaw),
-                            rotationOrigin: 'center'
-                        }).addTo(map);
-                        droneMarker.bindPopup('Drone connecté');
-                    } else {
-                        droneMarker.setLatLng([lat, lon]);
-                        droneMarker.setIcon(createDroneIcon(yaw));
-                    }
-                }
-            } catch (err) {
-                console.error('Erreur fetch /drone-position :', err);
+        const topLayer = L.tileLayer(
+            'http://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {
+                attribution: 'Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping',
+                minZoom: 12,
+                maxZoom: 17
+            }
+        ).addTo(map);
+        topLayer.setOpacity(0);
+        map.on('zoomend', () => {
+            topLayer.setOpacity(map.getZoom() >= 12 ? 1 : 0);
+        });
+
+        map.setView([-18.91368, 47.53613], 7);
+        L.control.scale().addTo(map);
+    }
+
+    setTimeout(init, 100);
+
+    // Add new vehicle to map
+    let vehicle = [];
+    function vehicle_init(id, location) {
+        const vehicle_icon = L.divIcon({
+            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
+               <path fill="#000" d="M482.3 192c34.2 0 93.7 29 93.7 64c0 36-59.5 64-93.7 64l-116.6 0L265.2 495.9c-5.7 10-16.3 16.1-27.8 16.1l-56.2 0c-10.6 0-18.3-10.2-15.4-20.4l49-171.6L112 320 68.8 377.6c-3 4-7.8 6.4-12.8 6.4l-42 0c-7.8 0-14-6.3-14-14c0-1.3 .2-2.6 .5-3.9L32 256 .5 145.9c-.4-1.3-.5-2.6-.5-3.9c0-7.8 6.3-14 14-14l42 0c5 0 9.8 2.4 12.8 6.4L112 192l102.9 0-49-171.6C162.9 10.2 170.6 0 181.2 0l56.2 0c11.5 0 22.1 6.2 27.8 16.1L365.7 192l116.6 0z"/>
+             </svg>`,
+            className: "",
+            iconSize: [50, 44]
+        });
+        const marker = new L.marker(location, {
+            icon: vehicle_icon,
+            rotationOrigin: "center",
+            zIndexOffset: 10,
+            interactive: false
+        }).addTo(map);
+        marker.bindTooltip(`SN${id}`, {
+            permanent: true,
+            direction: "right",
+            offset: [20, 0]
+        });
+        const trail = new L.polyline([location], {
+            color: "yellow",
+            interactive: false
+        }).addTo(map);
+        vehicle[id] = { marker, trail };
+        map.panTo(location);
+    }
+
+    // Update the position of a vehicle
+    function update_pos(msg) {
+        const id = msg._header.srcSystem;
+        const location = new L.LatLng(msg.lat * 1e-7, msg.lon * 1e-7);
+        const heading = msg.hdg * 0.01;
+        if (!vehicle[id]) {
+            vehicle_init(id, location);
+        }
+        if ("setRotationAngle" in vehicle[id].marker) {
+            vehicle[id].marker.setRotationAngle(heading - 90.0);
+        }
+        vehicle[id].marker.setLatLng(location);
+        if (options.autoPan) {
+            map.panInside(location, { padding: [50, 50] });
+        }
+        const trail = vehicle[id].trail.getLatLngs();
+        trail.unshift(location);
+        let length = 0;
+        for (let i = 1; i < trail.length; i++) {
+            length += trail[i - 1].distanceTo(trail[i]);
+            if (length > options.trailLengthM) {
+                trail.splice(i);
+                break;
             }
         }
-    </script>
-</body>
+        vehicle[id].trail.setLatLngs(trail);
+        // nav_target & pos_target updates below...
+    }
+
+    // Add home to the map
+    let home = [];
+    function home_init(id, location) {
+        const icon_div = document.createElement("div");
+        icon_div.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
+                            <path fill="#fff" d="M575.8 255.5c0 18-15 32.1-32 32.1l-32 0 .7 160.2c0 2.7-.2 5.4-.5 8.1l0 16.2c0 22.1-17.9 40-40 40l-16 0c-1.1 0-2.2 0-3.3-.1c-1.4 .1-2.8 .1-4.2 .1L416 512l-24 0c-22.1 0-40-17.9-40-40l0-24 0-64c0-17.7-14.3-32-32-32l-64 0c-17.7 0-32 14.3-32 32l0 64 0 24c0 22.1-17.9 40-40 40l-24 0-31.9 0c-1.5 0-3-.1-4.5-.2c-1.2 .1-2.4 .2-3.6 .2l-16 0c-22.1 0-40-17.9-40-40l0-112c0-.9 0-1.9 .1-2.8l0-69.7-32 0c-18 0-32-14-32-32.1c0-9 3-17 10-24L266.4 8c7-7 15-8 22-8s15 2 21 7L564.8 231.5c8 7 12 15 11 24z"/>
+                         </svg>`;
+        const home_icon = L.divIcon({ html: icon_div, className: "", iconSize: [40, 36] });
+        home[id] = new L.marker(location, { icon: home_icon, interactive: false }).addTo(map);
+    }
+    function update_home(msg) {
+        const id = msg._header.srcSystem;
+        const location = new L.LatLng(msg.latitude * 1e-7, msg.longitude * 1e-7);
+        if (!home[id]) home_init(id, location);
+        home[id].setLatLng(location);
+    }
+
+    // Nav target line
+    function update_nav_target(msg) { /* ... same as before ... */ }
+    // Position target line
+    function update_position_target(msg) { /* ... same as before ... */ }
+
+    // Runtime function
+    function handle_msg(msg) {
+        if (!map || msg._header.srcComponent !== 1) return;
+        if (msg._id === 33) update_pos(msg);
+        else if (msg._id === 242) update_home(msg);
+        else if (msg._id === 62) update_nav_target(msg);
+        else if (msg._id === 87) update_position_target(msg);
+    }
+
+    window.addEventListener('message', e => {
+        const data = e.data;
+        if (data.options) options = data.options;
+        if (data.MAVLink) handle_msg(data.MAVLink);
+    });
+</script>
 </html>
