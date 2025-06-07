@@ -165,7 +165,7 @@
             interactive: true
         }).addTo(map);
 
-        // Tooltip permanent
+        // Tooltip permanent, une seule fois
         let tooltip = `SN${msg.sysid ?? id}`;
         marker.bindTooltip(tooltip, {
             permanent: true,
@@ -174,23 +174,16 @@
             className: "vehicle-tooltip"
         });
 
-        // Tooltip de survol
-        let hoverTooltip = `SN${msg.sysid ?? id}`;
-        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
-            hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
-        }
-        marker.bindTooltip(hoverTooltip, {
-            permanent: false,
-            direction: "right",
-            offset: [20, 0],
-            className: "vehicle-tooltip-hover"
-        });
-
+        // Gestion du survol : change dynamiquement le contenu du tooltip
         marker.on('mouseover', function () {
-            this.openTooltip();
+            let hoverTooltip = `SN${msg.sysid ?? id}`;
+            if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
+                hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
+            }
+            this.setTooltipContent(hoverTooltip);
         });
         marker.on('mouseout', function () {
-            this.closeTooltip();
+            this.setTooltipContent(`SN${msg.sysid ?? id}`);
         });
 
         const trail = new L.polyline([location], {
@@ -201,7 +194,6 @@
         map.panTo(location);
     }
 
-    // Update the position of a vehicle
     function update_pos(msg) {
         const id = msg.sysid ?? 1;
         const location = new L.LatLng(msg.lat, msg.lon);
@@ -214,18 +206,8 @@
         }
         vehicle[id].marker.setLatLng(location);
 
-        // Met à jour le contenu du tooltip permanent
-        let tooltip = `SN${msg.sysid ?? id}`;
-        vehicle[id].marker.getTooltip().setContent(tooltip);
-
-        // Met à jour le contenu du tooltip de survol
-        let hoverTooltip = `SN${msg.sysid ?? id}`;
-        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
-            hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
-        }
-        // Attention : Leaflet ne gère qu'un seul tooltip par marker, donc il faut une astuce
-        // On peut stocker une référence au tooltip de survol si besoin, ou utiliser une lib tierce
-        // Sinon, on peut alterner le contenu du tooltip au survol (voir solution précédente)
+        // Met à jour le contenu du tooltip permanent (hors survol)
+        vehicle[id].marker.setTooltipContent(`SN${msg.sysid ?? id}`);
 
         if (options.autoPan) {
             map.panInside(location, { padding: [50, 50] });
@@ -242,6 +224,7 @@
         }
         vehicle[id].trail.setLatLngs(trail);
     }
+   
 
     // Add home to the map
     let home = [];
