@@ -195,6 +195,11 @@
         }
 
         function update_pos(msg) {
+            // Vérifie que lat et lon existent et sont des nombres
+            if (typeof msg.lat !== "number" || typeof msg.lon !== "number") {
+                console.warn("update_pos ignoré : lat/lon manquants", msg);
+                return;
+            }
             const id = msg.sysid ?? 1;
             const location = new L.LatLng(msg.lat, msg.lon);
             const heading = msg.yaw || 0;
