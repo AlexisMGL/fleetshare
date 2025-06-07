@@ -45,22 +45,24 @@ app.post("/drone-mission", (req, res) => {
     res.sendStatus(200);
 });
 
-// Endpoint pour fournir la mission d'un sysid
-app.get("/drone-mission/:sysid", (req, res) => {
-    const sysid = req.params.sysid;
-    if (missions[sysid]) {
-        res.json(missions[sysid]);
+app.post("/drone-missions", (req, res) => {
+    if (req.body && req.body.waypoints && req.body.sysid) {
+        missions.push({
+            waypoints: req.body.waypoints,
+            sysid: req.body.sysid,
+            timestamp: Date.now() // Ajout du timestamp
+        });
+        console.log("Mission reçue et stockée :", req.body);
+        res.sendStatus(200);
     } else {
-        res.status(204).send();
+        res.status(400).send("Format de mission invalide");
     }
 });
 
 app.get("/drone-missions/recent", (req, res) => {
     const now = Date.now();
     const fourHours = 4 * 60 * 60 * 1000;
-    const recentMissions = Object.values(missions)
-        .filter(m => m.receivedAt && (now - m.receivedAt) <= fourHours);
-    res.json(recentMissions);
+    res.json(missions.filter(m => now - m.timestamp <= fourHours));
 });
 
 app.use(express.static("public")); // Sert tout ce qui se trouve dans /public
