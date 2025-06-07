@@ -162,19 +162,36 @@
             icon: vehicle_icon,
             rotationOrigin: "center",
             zIndexOffset: 10000,
-            interactive: false
+            interactive: true // important pour le survol
         }).addTo(map);
 
-        // Tooltip enrichi
+        // Tooltip permanent : seulement SNxx
         let tooltip = `SN${msg.sysid ?? id}`;
-        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
-            tooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
-        }
         marker.bindTooltip(tooltip, {
             permanent: true,
             direction: "right",
             offset: [20, 0],
             className: "vehicle-tooltip"
+        });
+
+        // Tooltip au survol : SNxx + as/gs
+        let hoverTooltip = `SN${msg.sysid ?? id}`;
+        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
+            hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
+        }
+        marker.bindTooltip(hoverTooltip, {
+            permanent: false,
+            direction: "right",
+            offset: [20, 0],
+            className: "vehicle-tooltip-hover"
+        });
+
+        // Affiche le tooltip au survol
+        marker.on('mouseover', function (e) {
+            this.openTooltip();
+        });
+        marker.on('mouseout', function (e) {
+            this.closeTooltip();
         });
 
         const trail = new L.polyline([location], {
@@ -198,12 +215,39 @@
         }
         vehicle[id].marker.setLatLng(location);
 
-        // Met à jour le tooltip à chaque update
+        // Tooltip permanent : seulement SNxx
         let tooltip = `SN${msg.sysid ?? id}`;
-        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
-            tooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
-        }
         vehicle[id].marker.setTooltipContent(tooltip);
+
+        // Tooltip au survol : SNxx + as/gs
+        let hoverTooltip = `SN${msg.sysid ?? id}`;
+        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
+            hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
+        }
+        // On doit re-binder le tooltip temporaire à chaque update
+        vehicle[id].marker.unbindTooltip();
+        vehicle[id].marker.bindTooltip(tooltip, {
+            permanent: true,
+            direction: "right",
+            offset: [20, 0],
+            className: "vehicle-tooltip"
+        });
+        vehicle[id].marker.bindTooltip(hoverTooltip, {
+            permanent: false,
+            direction: "right",
+            offset: [20, 0],
+            className: "vehicle-tooltip-hover"
+        });
+
+        // Affiche le tooltip au survol
+        vehicle[id].marker.off('mouseover');
+        vehicle[id].marker.off('mouseout');
+        vehicle[id].marker.on('mouseover', function (e) {
+            this.openTooltip();
+        });
+        vehicle[id].marker.on('mouseout', function (e) {
+            this.closeTooltip();
+        });
 
         if (options.autoPan) {
             map.panInside(location, { padding: [50, 50] });
