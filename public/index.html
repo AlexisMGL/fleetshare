@@ -179,9 +179,12 @@
 
     // Update the position of a vehicle
     function update_pos(msg) {
-        const id = msg._header.srcSystem;
-        const location = new L.LatLng(msg.lat * 1e-7, msg.lon * 1e-7);
-        const heading = msg.hdg * 0.01;
+        // Utilise un id fixe si tu n'as pas de _header
+        const id = 1;
+        // Utilise directement lat/lon en degrés
+        const location = new L.LatLng(msg.lat, msg.lon);
+        // Utilise yaw si hdg absent
+        const heading = msg.yaw || 0;
         if (!vehicle[id]) {
             vehicle_init(id, location);
         }
@@ -203,7 +206,6 @@
             }
         }
         vehicle[id].trail.setLatLngs(trail);
-        // nav_target & pos_target updates below...
     }
 
     // Add home to the map
