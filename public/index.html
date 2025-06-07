@@ -291,64 +291,25 @@
             fetch("/drone-missions/recent")
                 .then(res => res.json())
                 .then(missions => {
-                    console.log("Missions reçues :", missions);
                     missions.forEach(m => {
                         if (m.waypoints) {
-                            console.log(`Waypoints bruts pour mission sysid=${m.sysid} :`, m.waypoints);
                             const waypoints = parseWaypoints(m.waypoints);
-                            console.log("Waypoints parsés :", waypoints);
                             const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
-                            console.log("Coordonnées latlngs :", latlngs);
                             if (latlngs.length > 1) {
-                                L.polyline(latlngs, {
+                                const poly = L.polyline(latlngs, {
                                     color: "blue",
                                     weight: 3,
                                     opacity: 0.7
                                 }).addTo(map);
-                                console.log("Polyligne ajoutée à la carte");
-                            } else {
-                                console.warn("Pas assez de points pour tracer une polyligne");
+                                // Ajoute ce zoom automatique :
+                                map.fitBounds(poly.getBounds());
                             }
-                        } else {
-                            console.warn("Mission sans waypoints :", m);
                         }
                     });
-                })
-                .catch(e => {
-                    console.error("Erreur lors du fetch des missions :", e);
                 });
         }
 
-        // Exemple d’utilisation après avoir fetch les missions récentes
-        fetch("/drone-missions/recent")
-            .then(res => res.json())
-            .then(missions => {
-                console.log("Missions reçues :", missions);
-                missions.forEach(m => {
-                    if (m.waypoints) {
-                        console.log(`Waypoints bruts pour mission sysid=${m.sysid} :`, m.waypoints);
-                        const waypoints = parseWaypoints(m.waypoints);
-                        console.log("Waypoints parsés :", waypoints);
-                        const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
-                        console.log("Coordonnées latlngs :", latlngs);
-                        if (latlngs.length > 1) {
-                            L.polyline(latlngs, {
-                                color: "blue",
-                                weight: 3,
-                                opacity: 0.7
-                            }).addTo(map);
-                            console.log("Polyligne ajoutée à la carte");
-                        } else {
-                            console.warn("Pas assez de points pour tracer une polyligne");
-                        }
-                    } else {
-                        console.warn("Mission sans waypoints :", m);
-                    }
-                });
-            })
-            .catch(e => {
-                console.error("Erreur lors du fetch des missions :", e);
-            });
+
 
     </script>
 </body>
