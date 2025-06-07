@@ -52,7 +52,7 @@
 </body>
 <script>
     let windy_options = {
-        key: '',
+        key: 'SSUGxhvXMZUTgav1QfuYZG7smD3vaEPB',
         lat: 14,
         lon: -29,
         zoom: 15
@@ -61,6 +61,15 @@
     let init_done = false;
     let map = null;
     let options = null;
+
+    // Initialisation locale d'options si aucun message externe n'est reçu
+    if (!options) {
+        options = {
+            key: windy_options.key,
+            autoPan: true,
+            trailLengthM: 10000
+        };
+    }
 
     function init() {
         if (!options) {
