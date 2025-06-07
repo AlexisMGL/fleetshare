@@ -289,8 +289,14 @@
                 missions.forEach(m => {
                     if (m.waypoints) {
                         const waypoints = parseWaypoints(m.waypoints);
-                        // Affiche ou utilise les waypoints ici
-                        console.log("Waypoints pour sysid", m.sysid, waypoints);
+                        // On extrait les coordonnées dans le bon format
+                        const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
+                        // On trace la route sur la carte
+                        L.polyline(latlngs, {
+                            color: "blue",
+                            weight: 3,
+                            opacity: 0.7
+                        }).addTo(map);
                     }
                 });
             });
