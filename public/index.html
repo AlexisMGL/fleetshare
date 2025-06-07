@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Custom HTML Example</title>
+    <title>AerialMetric fleet follow</title>
 
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
@@ -215,23 +215,23 @@
         }
         vehicle[id].marker.setLatLng(location);
 
+        // Supprimer les tooltips existantes AVANT d'en ajouter de nouvelles
+        vehicle[id].marker.unbindTooltip();
+
         // Tooltip permanent : seulement SNxx
         let tooltip = `SN${msg.sysid ?? id}`;
-        vehicle[id].marker.setTooltipContent(tooltip);
-
-        // Tooltip au survol : SNxx + as/gs
-        let hoverTooltip = `SN${msg.sysid ?? id}`;
-        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
-            hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
-        }
-        // On doit re-binder le tooltip temporaire à chaque update
-        vehicle[id].marker.unbindTooltip();
         vehicle[id].marker.bindTooltip(tooltip, {
             permanent: true,
             direction: "right",
             offset: [20, 0],
             className: "vehicle-tooltip"
         });
+
+        // Tooltip au survol : SNxx + as/gs
+        let hoverTooltip = `SN${msg.sysid ?? id}`;
+        if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
+            hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
+        }
         vehicle[id].marker.bindTooltip(hoverTooltip, {
             permanent: false,
             direction: "right",
