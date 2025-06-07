@@ -87,6 +87,7 @@
                 init_done = true;
                 windyInit(windy_options, windyAPI => {
                     map = windyAPI.map;
+                    fetchAndDrawMissions();
                     map.options.maxZoom = 17;
                     loading_div.style.display = "none";
 
@@ -275,7 +276,6 @@
         }, 2000);
 
         function parseWaypoints(waypointsStr) {
-            // Ex: "WP1: -154207169,497246178 WP2: ..."
             return waypointsStr.split("WP").slice(1).map(wp => {
                 const [label, coords] = wp.split(":");
                 const [lon, lat] = coords.trim().split(",").map(Number);
@@ -285,6 +285,38 @@
                     lon: lon / 1e7
                 };
             });
+        }
+
+        function fetchAndDrawMissions() {
+            fetch("/drone-missions/recent")
+                .then(res => res.json())
+                .then(missions => {
+                    console.log("Missions reçues :", missions);
+                    missions.forEach(m => {
+                        if (m.waypoints) {
+                            console.log(`Waypoints bruts pour mission sysid=${m.sysid} :`, m.waypoints);
+                            const waypoints = parseWaypoints(m.waypoints);
+                            console.log("Waypoints parsés :", waypoints);
+                            const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
+                            console.log("Coordonnées latlngs :", latlngs);
+                            if (latlngs.length > 1) {
+                                L.polyline(latlngs, {
+                                    color: "blue",
+                                    weight: 3,
+                                    opacity: 0.7
+                                }).addTo(map);
+                                console.log("Polyligne ajoutée à la carte");
+                            } else {
+                                console.warn("Pas assez de points pour tracer une polyligne");
+                            }
+                        } else {
+                            console.warn("Mission sans waypoints :", m);
+                        }
+                    });
+                })
+                .catch(e => {
+                    console.error("Erreur lors du fetch des missions :", e);
+                });
         }
 
         // Exemple d’utilisation après avoir fetch les missions récentes
