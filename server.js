@@ -43,6 +43,7 @@ app.post("/drone-mission", (req, res) => {
         receivedAt: Date.now()
     };
     // Ajout : stocker aussi dans le tableau missions
+    missions = missions.filter(m => m.sysid !== req.body.sysid);
     missions.push({
         waypoints: req.body.waypoints,
         sysid: req.body.sysid,
@@ -53,20 +54,7 @@ app.post("/drone-mission", (req, res) => {
     res.sendStatus(200);
 });
 
-// Endpoint pour recevoir une mission (tableau)
-app.post("/drone-missions", (req, res) => {
-    if (req.body && req.body.waypoints && req.body.sysid) {
-        missions.push({
-            waypoints: req.body.waypoints,
-            sysid: req.body.sysid,
-            timestamp: Date.now()
-        });
-        console.log("Mission reçue et stockée :", req.body);
-        res.sendStatus(200);
-    } else {
-        res.status(400).send("Format de mission invalide");
-    }
-});
+
 
 // Endpoint pour obtenir les missions des 4 dernières heures
 app.get("/drone-missions/recent", (req, res) => {
