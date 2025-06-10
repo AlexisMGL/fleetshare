@@ -216,7 +216,8 @@
             return {
                 progress: (traveled / total) * 100,
                 totalKm: total / 1000,
-                remainingKm: remaining / 1000
+                remainingKm: remaining / 1000,
+                traveledKm: traveled / 1000
             };
         }
 
@@ -231,12 +232,12 @@
                 if (wpts) {
                     const info = computeMissionInfo(pos, wpts);
                     const pct = Math.round(info.progress);
-                    const remain = info.remainingKm.toFixed(1);
+                    const traveled = info.traveledKm.toFixed(1);
                     const total = info.totalKm.toFixed(1);
                     const sec = (info.remainingKm * 1000) / 25;
                     const landDate = new Date(Date.now() + sec * 1000);
                     const landStr = `${landDate.getHours().toString().padStart(2, '0')}:${landDate.getMinutes().toString().padStart(2, '0')}`;
-                    html += `SN${id} : ${pct}% (${remain}/${total} km) (land: ${landStr})<br/>`;
+                    html += `SN${id} : ${pct}% (${traveled}/${total} km) (land: ${landStr})<br/>`;
                 } else {
                     html += `SN${id} : NA<br/>`;
                 }
