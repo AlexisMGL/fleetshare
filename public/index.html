@@ -167,15 +167,52 @@
         let vehicle = [];
         let missionsData = {};
 
-        function computeMissionProgress(pos, waypoints) {
-            if (!waypoints || waypoints.length < 2) return 0;
-            const start = waypoints[0];
-            const end = waypoints[waypoints.length - 1];
-            const total = start.distanceTo(end);
-            if (total === 0) return 0;
-            const remaining = pos.distanceTo(end);
-            const progress = 1 - remaining / total;
-            return Math.max(0, Math.min(1, progress));
+        function computeMissionInfo(pos, waypoints) {
+            if (!waypoints || waypoints.length < 2) {
+                return { pctRemaining: 0, totalKm: 0 };
+            }
+
+            // Total distance of the mission
+            let total = 0;
+            const segStart = [0];
+            for (let i = 1; i < waypoints.length; i++) {
+                total += waypoints[i - 1].distanceTo(waypoints[i]);
+                segStart[i] = total;
+            }
+
+            if (total === 0) {
+                return { pctRemaining: 0, totalKm: 0 };
+            }
+
+            // Find the closest point on the route to current position
+            let bestDist = Infinity;
+            let traveled = 0;
+            for (let i = 1; i < waypoints.length; i++) {
+                const A = waypoints[i - 1];
+                const B = waypoints[i];
+                const segLen = A.distanceTo(B);
+
+                const abLat = B.lat - A.lat;
+                const abLng = B.lng - A.lng;
+                const ab2 = abLat * abLat + abLng * abLng;
+                let t = 0;
+                if (ab2 > 0) {
+                    const apLat = pos.lat - A.lat;
+                    const apLng = pos.lng - A.lng;
+                    t = (apLat * abLat + apLng * abLng) / ab2;
+                    t = Math.max(0, Math.min(1, t));
+                }
+
+                const proj = L.latLng(A.lat + abLat * t, A.lng + abLng * t);
+                const distToSeg = pos.distanceTo(proj);
+                if (distToSeg < bestDist) {
+                    bestDist = distToSeg;
+                    traveled = segStart[i - 1] + segLen * t;
+                }
+            }
+
+            const remaining = Math.max(0, total - traveled);
+            return { pctRemaining: (remaining / total) * 100, totalKm: total / 1000 };
         }
 
         function updateDashboard() {
@@ -185,12 +222,12 @@
             ids.forEach(id => {
                 const pos = vehicle[id].marker.getLatLng();
                 const wpts = missionsData[id];
-                let pct = 0;
                 if (wpts) {
-                    pct = Math.round(computeMissionProgress(pos, wpts) * 100);
-                    html += `Drone ${id} : ${pct}%<br/>`;
+                    const info = computeMissionInfo(pos, wpts);
+                    const pct = Math.round(info.pctRemaining);
+                    html += `Drone ${id} : ${pct}% (${info.totalKm.toFixed(1)} km)<br/>`;
                 } else {
-                    html += `Drone ${id} : -<br/>`;
+                    html += `Drone ${id} : NA<br/>`;
                 }
             });
             dash.innerHTML = html;
