@@ -46,11 +46,23 @@
             justify-content: center;
             z-index: 999;
         }
+
+        #dashboard {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: sans-serif;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
     <div id="windy"></div>
     <div id="loading">Loading</div>
+    <div id="dashboard"></div>
 
     <script>
         let windy_options = {
@@ -153,6 +165,36 @@
 
         // Add new vehicle to map
         let vehicle = [];
+        let missionsData = {};
+
+        function computeMissionProgress(pos, waypoints) {
+            if (!waypoints || waypoints.length < 2) return 0;
+            const start = waypoints[0];
+            const end = waypoints[waypoints.length - 1];
+            const total = start.distanceTo(end);
+            if (total === 0) return 0;
+            const remaining = pos.distanceTo(end);
+            const progress = 1 - remaining / total;
+            return Math.max(0, Math.min(1, progress));
+        }
+
+        function updateDashboard() {
+            const dash = document.getElementById('dashboard');
+            const ids = Object.keys(vehicle);
+            let html = `<b>Drones en vol : ${ids.length}</b><br/>`;
+            ids.forEach(id => {
+                const pos = vehicle[id].marker.getLatLng();
+                const wpts = missionsData[id];
+                let pct = 0;
+                if (wpts) {
+                    pct = Math.round(computeMissionProgress(pos, wpts) * 100);
+                    html += `Drone ${id} : ${pct}%<br/>`;
+                } else {
+                    html += `Drone ${id} : -<br/>`;
+                }
+            });
+            dash.innerHTML = html;
+        }
         function vehicle_init(id, location, msg) {
             const vehicle_icon = L.divIcon({
                 html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
@@ -231,6 +273,7 @@
                 }
             }
             vehicle[id].trail.setLatLngs(trail);
+            updateDashboard();
         }
 
 
@@ -297,6 +340,7 @@
                         if (m.waypoints) {
                             const waypoints = parseWaypoints(m.waypoints);
                             const latlngs = waypoints.map(wp => [wp.lat, wp.lon]);
+                            missionsData[m.sysid] = latlngs.map(ll => L.latLng(ll[0], ll[1]));
                             if (latlngs.length > 1) {
                                 const poly = L.polyline(latlngs, {
                                     color: "blue",
@@ -308,6 +352,7 @@
                             }
                         }
                     });
+                    updateDashboard();
                 });
         }
 
