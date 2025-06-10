@@ -166,10 +166,11 @@
         // Add new vehicle to map
         let vehicle = [];
         let missionsData = {};
+        let lastAirspeed = {};
 
         function computeMissionInfo(pos, waypoints) {
             if (!waypoints || waypoints.length < 2) {
-                return { pctRemaining: 0, totalKm: 0 };
+                return { progress: 0, totalKm: 0, remainingKm: 0 };
             }
 
             // Total distance of the mission
@@ -181,7 +182,7 @@
             }
 
             if (total === 0) {
-                return { pctRemaining: 0, totalKm: 0 };
+                return { progress: 0, totalKm: 0, remainingKm: 0 };
             }
 
             // Find the closest point on the route to current position
@@ -212,22 +213,32 @@
             }
 
             const remaining = Math.max(0, total - traveled);
-            return { pctRemaining: (remaining / total) * 100, totalKm: total / 1000 };
+            return {
+                progress: (traveled / total) * 100,
+                totalKm: total / 1000,
+                remainingKm: remaining / 1000
+            };
         }
 
         function updateDashboard() {
             const dash = document.getElementById('dashboard');
             const ids = Object.keys(vehicle);
-            let html = `<b>Drones en vol : ${ids.length}</b><br/>`;
+            const flying = ids.filter(id => (lastAirspeed[id] || 0) > 10);
+            let html = `<b>Drones en vol : ${flying.length}</b><br/>`;
             ids.forEach(id => {
                 const pos = vehicle[id].marker.getLatLng();
                 const wpts = missionsData[id];
                 if (wpts) {
                     const info = computeMissionInfo(pos, wpts);
-                    const pct = Math.round(info.pctRemaining);
-                    html += `Drone ${id} : ${pct}% (${info.totalKm.toFixed(1)} km)<br/>`;
+                    const pct = Math.round(info.progress);
+                    const remain = info.remainingKm.toFixed(1);
+                    const total = info.totalKm.toFixed(1);
+                    const sec = (info.remainingKm * 1000) / 25;
+                    const landDate = new Date(Date.now() + sec * 1000);
+                    const landStr = `${landDate.getHours().toString().padStart(2, '0')}:${landDate.getMinutes().toString().padStart(2, '0')}`;
+                    html += `SN${id} : ${pct}% (${remain}/${total} km) (land: ${landStr})<br/>`;
                 } else {
-                    html += `Drone ${id} : NA<br/>`;
+                    html += `SN${id} : NA<br/>`;
                 }
             });
             dash.innerHTML = html;
@@ -285,6 +296,9 @@
             const id = msg.sysid ?? 1;
             const location = new L.LatLng(msg.lat, msg.lon);
             const heading = msg.yaw || 0;
+            if (typeof msg.airspeed === 'number') {
+                lastAirspeed[id] = msg.airspeed;
+            }
             if (!vehicle[id]) {
                 vehicle_init(id, location, msg);
             }
