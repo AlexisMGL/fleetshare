@@ -61,7 +61,8 @@ const IMEI_SYSID_MAP = {
  *    at offsets 10 and 14 (0-based), representing degrees × 1e7.
  *
  * @param {string} hexPayload - The raw payload as a hex string.
- * @returns {{ latitude: number, longitude: number }} Parsed coordinates in degrees.
+ * @returns {{ latitude: number, longitude: number, yaw: number, airspeed: number, groundspeed: number }}
+ * Parsed coordinates and additional flight data.
  * @throws Will throw an error if payload is too short or invalid.
  */
 function parseCoords(hexPayload) {
@@ -79,19 +80,25 @@ function parseCoords(hexPayload) {
     // DataView for reading little-endian signed ints
     const view = new DataView(bytes.buffer);
 
-    // Offsets for latitude and longitude (0-based)
+    // Offsets for fields within the HIGH_LATENCY2 payload (0-based)
     const LAT_OFFSET = 10;
     const LON_OFFSET = 14;
+    const YAW_OFFSET = 32;          // heading
+    const AIRSPEED_OFFSET = 35;
+    const GROUNDSPEED_OFFSET = 37;
 
     // Read 32-bit signed integers
     const rawLat = view.getInt32(LAT_OFFSET, true);
     const rawLon = view.getInt32(LON_OFFSET, true);
+    const yaw = view.getUint8(YAW_OFFSET);
+    const airspeed = view.getUint8(AIRSPEED_OFFSET);
+    const groundspeed = view.getUint8(GROUNDSPEED_OFFSET);
 
     // Convert to degrees
     const latitude = rawLat / 1e7;
     const longitude = rawLon / 1e7;
 
-    return { latitude, longitude };
+    return { latitude, longitude, yaw, airspeed, groundspeed };
 }
 
 // Chargement des missions individuelles (par sysid)
@@ -138,14 +145,14 @@ app.post("/rock", (req, res) => {
 
     console.log("Payload RockBLOCK reçu :", payload);
     try {
-        const { latitude, longitude } = parseCoords(payload);
+        const { latitude, longitude, yaw, airspeed, groundspeed } = parseCoords(payload);
         const sysid = IMEI_SYSID_MAP[req.body.imei] ?? 0;
         latestPosition = {
             lat: latitude,
             lon: longitude,
-            yaw: 0,
-            airspeed: 0,
-            groundspeed: 0,
+            yaw,
+            airspeed,
+            groundspeed,
             alt: 0,
             sysid: sysid
         };
