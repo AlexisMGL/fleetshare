@@ -5,6 +5,47 @@ app.use(express.json());
 const fs = require("fs");
 const MISSION_FILE = "missions.json";
 
+/**
+ * Parse a hex payload string and extract GPS coordinates.
+ * Assumes:
+ *  - Payload is a hex string (no spaces).
+ *  - Latitude and longitude are each 4-byte signed ints (little-endian),
+ *    at offsets 10 and 14 (0-based), representing degrees × 1e7.
+ *
+ * @param {string} hexPayload - The raw payload as a hex string.
+ * @returns {{ latitude: number, longitude: number }} Parsed coordinates in degrees.
+ * @throws Will throw an error if payload is too short or invalid.
+ */
+function parseCoords(hexPayload) {
+    if (typeof hexPayload !== 'string' || hexPayload.length < (18 * 2)) {
+        throw new Error('Invalid payload: too short or not a hex string');
+    }
+
+    // Convert hex string to Uint8Array
+    const byteCount = hexPayload.length / 2;
+    const bytes = new Uint8Array(byteCount);
+    for (let i = 0; i < byteCount; i++) {
+        bytes[i] = parseInt(hexPayload.substr(i * 2, 2), 16);
+    }
+
+    // DataView for reading little-endian signed ints
+    const view = new DataView(bytes.buffer);
+
+    // Offsets for latitude and longitude (0-based)
+    const LAT_OFFSET = 10;
+    const LON_OFFSET = 14;
+
+    // Read 32-bit signed integers
+    const rawLat = view.getInt32(LAT_OFFSET, true);
+    const rawLon = view.getInt32(LON_OFFSET, true);
+
+    // Convert to degrees
+    const latitude = rawLat / 1e7;
+    const longitude = rawLon / 1e7;
+
+    return { latitude, longitude };
+}
+
 // Chargement des missions individuelles (par sysid)
 let missionsBySysid = {};
 if (fs.existsSync(MISSION_FILE)) {
@@ -28,6 +69,30 @@ app.get("/drone-position", (req, res) => {
         res.json(latestPosition);
     } else {
         res.status(204).send();
+    }
+});
+
+// Endpoint pour recevoir un payload RockBLOCK et mettre à jour la position
+app.post("/rock", (req, res) => {
+    const { payload } = req.body;
+    if (typeof payload !== 'string') {
+        return res.status(400).send("payload manquant");
+    }
+    try {
+        const { latitude, longitude } = parseCoords(payload);
+        latestPosition = {
+            lat: latitude,
+            lon: longitude,
+            yaw: 0,
+            airspeed: 0,
+            groundspeed: 0,
+            alt: 0,
+            sysid: 1
+        };
+        console.log("Rock position reçue :", latestPosition);
+        res.sendStatus(200);
+    } catch (e) {
+        res.status(400).send(e.message);
     }
 });
 
