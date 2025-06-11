@@ -76,8 +76,10 @@ app.get("/drone-position", (req, res) => {
 app.post("/rock", (req, res) => {
     const { payload } = req.body;
     if (typeof payload !== 'string') {
+        console.log("Payload RockBLOCK invalide :", req.body);
         return res.status(400).send("payload manquant");
     }
+    console.log("Payload RockBLOCK reçu :", payload);
     try {
         const { latitude, longitude } = parseCoords(payload);
         latestPosition = {
@@ -92,6 +94,7 @@ app.post("/rock", (req, res) => {
         console.log("Rock position reçue :", latestPosition);
         res.sendStatus(200);
     } catch (e) {
+        console.error("Erreur parsing RockBLOCK :", e.message, "payload:", payload);
         res.status(400).send(e.message);
     }
 });
