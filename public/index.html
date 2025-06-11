@@ -311,9 +311,9 @@
             // Met à jour le contenu du tooltip permanent (hors survol)
             vehicle[id].marker.setTooltipContent(`SN${msg.sysid ?? id}`);
 
-            if (options.autoPan) {
-                map.panInside(location, { padding: [50, 50] });
-            }
+            //if (options.autoPan) {
+            //    map.panInside(location, { padding: [50, 50] });
+            //}
             const trail = vehicle[id].trail.getLatLngs();
             trail.unshift(location);
             let length = 0;
