@@ -74,11 +74,20 @@ app.get("/drone-position", (req, res) => {
 
 // Endpoint pour recevoir un payload RockBLOCK et mettre à jour la position
 app.post("/rock", (req, res) => {
-    const { payload } = req.body;
-    if (typeof payload !== 'string') {
+    // Nouveau format : le champ "data" contient la payload hexadécimale. On
+    // conserve la compatibilité avec l'ancien champ "payload" si présent.
+    const payload =
+        typeof req.body.data === "string"
+            ? req.body.data
+            : typeof req.body.payload === "string"
+                ? req.body.payload
+                : undefined;
+
+    if (!payload) {
         console.log("Payload RockBLOCK invalide :", req.body);
         return res.status(400).send("payload manquant");
     }
+
     console.log("Payload RockBLOCK reçu :", payload);
     try {
         const { latitude, longitude } = parseCoords(payload);
