@@ -91,8 +91,8 @@ function parseCoords(hexPayload) {
     const rawLat = view.getInt32(LAT_OFFSET, true);
     const rawLon = view.getInt32(LON_OFFSET, true);
     const yaw = view.getUint8(YAW_OFFSET);
-    const airspeed = view.getUint8(AIRSPEED_OFFSET);
-    const groundspeed = view.getUint8(GROUNDSPEED_OFFSET);
+    const airspeed = view.getUint8(AIRSPEED_OFFSET) / 5;
+    const groundspeed = view.getUint8(GROUNDSPEED_OFFSET) / 5;
 
     // Convert to degrees
     const latitude = rawLat / 1e7;
