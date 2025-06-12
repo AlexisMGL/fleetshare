@@ -4,6 +4,20 @@ app.use(express.json());
 
 const fs = require("fs");
 const MISSION_FILE = "missions.json";
+const util = require("util");
+
+// In-memory store of the last 100 RockBLOCK related log lines
+const rockLogs = [];
+
+function rockLog(...args) {
+    console.log(...args);
+    const msg = args.map(a => (typeof a === "string" ? a : util.inspect(a))).join(" ");
+    const line = `${new Date().toISOString()} ${msg}`;
+    rockLogs.push(line);
+    if (rockLogs.length > 100) {
+        rockLogs.splice(0, rockLogs.length - 100);
+    }
+}
 
 const IMEI_SYSID_MAP = {
     "300434064530460": 6,
@@ -142,11 +156,11 @@ app.post("/rock", (req, res) => {
                 : undefined;
 
     if (!payload) {
-        console.log("Payload RockBLOCK invalide :", req.body);
+        rockLog("Payload RockBLOCK invalide :", req.body);
         return res.status(400).send("payload manquant");
     }
 
-    console.log("Payload RockBLOCK reçu :", payload);
+    rockLog("Payload RockBLOCK reçu :", payload);
     try {
         const { latitude, longitude, yaw, airspeed, groundspeed } = parseCoords(payload);
         const sysid = IMEI_SYSID_MAP[req.body.imei] ?? 0;
@@ -159,10 +173,10 @@ app.post("/rock", (req, res) => {
             alt: 0,
             sysid: sysid
         };
-        console.log("Rock position reçue :", latestPosition);
+        rockLog("Rock position reçue :", latestPosition);
         res.sendStatus(200);
     } catch (e) {
-        console.error("Erreur parsing RockBLOCK :", e.message, "payload:", payload);
+        rockLog("Erreur parsing RockBLOCK :", e.message, "payload:", payload);
         res.status(400).send(e.message);
     }
 });
@@ -202,6 +216,11 @@ app.get("/drone-missions/recent", (req, res) => {
 // (Optionnel) Endpoint pour obtenir toutes les missions
 app.get("/drone-missions", (req, res) => {
     res.json(missions);
+});
+
+// Endpoint to view last 100 RockBLOCK logs
+app.get("/rocklog", (req, res) => {
+    res.type("text/plain").send(rockLogs.slice(-100).join("\n"));
 });
 
 app.use(express.static("public"));
