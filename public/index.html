@@ -167,6 +167,7 @@
         let vehicle = [];
         let missionsData = {};
         let lastAirspeed = {};
+        let lastGroundspeed = {};
 
         function computeMissionInfo(pos, waypoints) {
             if (!waypoints || waypoints.length < 2) {
@@ -271,8 +272,10 @@
             // Gestion du survol : change dynamiquement le contenu du tooltip
             marker.on('mouseover', function () {
                 let hoverTooltip = `SN${msg.sysid ?? id}`;
-                if (msg.airspeed !== undefined && msg.groundspeed !== undefined) {
-                    hoverTooltip += `<br><span style="font-size:12px;">as = ${msg.airspeed} gs = ${msg.groundspeed}</span>`;
+                const as = lastAirspeed[id];
+                const gs = lastGroundspeed[id];
+                if (typeof as === 'number' && typeof gs === 'number') {
+                    hoverTooltip += `<br><span style="font-size:12px;">as = ${as} gs = ${gs}</span>`;
                 }
                 this.setTooltipContent(hoverTooltip);
             });
@@ -300,6 +303,9 @@
             if (typeof msg.airspeed === 'number') {
                 lastAirspeed[id] = msg.airspeed;
             }
+            if (typeof msg.groundspeed === 'number') {
+                lastGroundspeed[id] = msg.groundspeed;
+            }
             if (!vehicle[id]) {
                 vehicle_init(id, location, msg);
             }
@@ -308,8 +314,15 @@
             }
             vehicle[id].marker.setLatLng(location);
 
-            // Met à jour le contenu du tooltip permanent (hors survol)
-            vehicle[id].marker.setTooltipContent(`SN${msg.sysid ?? id}`);
+            // Met à jour le contenu du tooltip en tenant compte du survol
+            let tooltipContent = `SN${msg.sysid ?? id}`;
+            const as = lastAirspeed[id];
+            const gs = lastGroundspeed[id];
+            const showDetails = vehicle[id].marker.isTooltipOpen && vehicle[id].marker.isTooltipOpen();
+            if (showDetails && typeof as === 'number' && typeof gs === 'number') {
+                tooltipContent += `<br><span style="font-size:12px;">as = ${as} gs = ${gs}</span>`;
+            }
+            vehicle[id].marker.setTooltipContent(tooltipContent);
 
             //if (options.autoPan) {
             //    map.panInside(location, { padding: [50, 50] });
