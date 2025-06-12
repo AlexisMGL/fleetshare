@@ -10,8 +10,9 @@ const util = require("util");
 const rockLogs = [];
 
 function rockLog(...args) {
-    console.log(...args);
-    const msg = args.map(a => (typeof a === "string" ? a : util.inspect(a))).join(" ");
+    const msg = args
+        .map(a => (typeof a === "string" ? a : util.inspect(a)))
+        .join(" ");
     const line = `${new Date().toISOString()} ${msg}`;
     rockLogs.push(line);
     if (rockLogs.length > 100) {
@@ -156,10 +157,12 @@ app.post("/rock", (req, res) => {
                 : undefined;
 
     if (!payload) {
+        console.log("Payload RockBLOCK invalide :", req.body);
         rockLog("Payload RockBLOCK invalide :", req.body);
         return res.status(400).send("payload manquant");
     }
 
+    console.log("Payload RockBLOCK reçu :", payload);
     rockLog("Payload RockBLOCK reçu :", payload);
     try {
         const { latitude, longitude, yaw, airspeed, groundspeed } = parseCoords(payload);
@@ -173,9 +176,11 @@ app.post("/rock", (req, res) => {
             alt: 0,
             sysid: sysid
         };
+        console.log("Rock position reçue :", latestPosition);
         rockLog("Rock position reçue :", latestPosition);
         res.sendStatus(200);
     } catch (e) {
+        console.error("Erreur parsing RockBLOCK :", e.message, "payload:", payload);
         rockLog("Erreur parsing RockBLOCK :", e.message, "payload:", payload);
         res.status(400).send(e.message);
     }
