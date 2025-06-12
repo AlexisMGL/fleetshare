@@ -90,7 +90,10 @@ function parseCoords(hexPayload) {
     // Read 32-bit signed integers
     const rawLat = view.getInt32(LAT_OFFSET, true);
     const rawLon = view.getInt32(LON_OFFSET, true);
-    const yaw = view.getUint8(YAW_OFFSET);
+    // Heading is stored in the HIGH_LATENCY2 message with a resolution of
+    // 2 degrees per unit (0..180 -> 0..360°). Convert it back to degrees.
+    const yawRaw = view.getUint8(YAW_OFFSET);
+    const yaw = (yawRaw * 2) % 360;
     const airspeed = view.getUint8(AIRSPEED_OFFSET) / 5;
     const groundspeed = view.getUint8(GROUNDSPEED_OFFSET) / 5;
 
