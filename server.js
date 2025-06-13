@@ -101,6 +101,7 @@ function parseCoords(hexPayload) {
     const YAW_OFFSET = 32;          // heading
     const AIRSPEED_OFFSET = 35;
     const GROUNDSPEED_OFFSET = 37;
+    const WIND_OFFSET = 38;
 
     // Read 32-bit signed integers
     const rawLat = view.getInt32(LAT_OFFSET, true);
@@ -111,12 +112,13 @@ function parseCoords(hexPayload) {
     const yaw = (yawRaw * 2) % 360;
     const airspeed = view.getUint8(AIRSPEED_OFFSET) / 5;
     const groundspeed = view.getUint8(GROUNDSPEED_OFFSET) / 5;
+    const windspeed = view.getUint8(WIND_OFFSET) / 5;
 
     // Convert to degrees
     const latitude = rawLat / 1e7;
     const longitude = rawLon / 1e7;
 
-    return { latitude, longitude, yaw, airspeed, groundspeed };
+    return { latitude, longitude, yaw, airspeed, groundspeed, windspeed };
 }
 
 // Chargement des missions individuelles (par sysid)
@@ -132,7 +134,7 @@ let missions = [];
 let latestPosition = null;
 
 app.post("/drone-position", (req, res) => {
-    latestPosition = req.body;
+    latestPosition = { windspeed: 0, ...req.body };
     console.log("Position reçue :", latestPosition);
     res.sendStatus(200);
 });
@@ -165,7 +167,7 @@ app.post("/rock", (req, res) => {
     console.log("Payload RockBLOCK reçu :", payload);
     rockLog("Payload RockBLOCK reçu :", payload);
     try {
-        const { latitude, longitude, yaw, airspeed, groundspeed } = parseCoords(payload);
+        const { latitude, longitude, yaw, airspeed, groundspeed, windspeed } = parseCoords(payload);
         const sysid = IMEI_SYSID_MAP[req.body.imei] ?? 0;
         latestPosition = {
             lat: latitude,
@@ -174,6 +176,7 @@ app.post("/rock", (req, res) => {
             airspeed,
             groundspeed,
             alt: 0,
+            windspeed,
             sysid: sysid
         };
         console.log("Rock position reçue :", latestPosition);

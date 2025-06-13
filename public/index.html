@@ -168,6 +168,7 @@
         let missionsData = {};
         let lastAirspeed = {};
         let lastGroundspeed = {};
+        let lastWindspeed = {};
 
         function computeMissionInfo(pos, waypoints) {
             if (!waypoints || waypoints.length < 2) {
@@ -274,7 +275,10 @@
                 let hoverTooltip = `SN${msg.sysid ?? id}`;
                 const as = lastAirspeed[id];
                 const gs = lastGroundspeed[id];
-                if (typeof as === 'number' && typeof gs === 'number') {
+                const ws = lastWindspeed[id];
+                if (typeof as === 'number' && typeof gs === 'number' && typeof ws === 'number') {
+                    hoverTooltip += `<br><span style="font-size:12px;">as = ${as} gs = ${gs} ws = ${ws}</span>`;
+                } else if (typeof as === 'number' && typeof gs === 'number') {
                     hoverTooltip += `<br><span style="font-size:12px;">as = ${as} gs = ${gs}</span>`;
                 }
                 this.setTooltipContent(hoverTooltip);
@@ -306,6 +310,9 @@
             if (typeof msg.groundspeed === 'number') {
                 lastGroundspeed[id] = msg.groundspeed;
             }
+            if (typeof msg.windspeed === 'number') {
+                lastWindspeed[id] = msg.windspeed;
+            }
             if (!vehicle[id]) {
                 vehicle_init(id, location, msg);
             }
@@ -318,8 +325,11 @@
             let tooltipContent = `SN${msg.sysid ?? id}`;
             const as = lastAirspeed[id];
             const gs = lastGroundspeed[id];
+            const ws = lastWindspeed[id];
             const showDetails = vehicle[id].marker.isTooltipOpen && vehicle[id].marker.isTooltipOpen();
-            if (showDetails && typeof as === 'number' && typeof gs === 'number') {
+            if (showDetails && typeof as === 'number' && typeof gs === 'number' && typeof ws === 'number') {
+                tooltipContent += `<br><span style="font-size:12px;">as = ${as} gs = ${gs} ws = ${ws}</span>`;
+            } else if (showDetails && typeof as === 'number' && typeof gs === 'number') {
                 tooltipContent += `<br><span style="font-size:12px;">as = ${as} gs = ${gs}</span>`;
             }
             vehicle[id].marker.setTooltipContent(tooltipContent);
