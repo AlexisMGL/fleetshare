@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Web Streamer</title>
+</head>
+<body>
+    <h1>Web Streamer</h1>
+    <input id="pipeline" type="text" placeholder="gstreamer pipeline" style="width:80%" />
+    <button id="start">Start</button>
+    <button id="stop">Stop</button>
+    <div>
+        <img id="stream" style="max-width:100%; display:none;" />
+    </div>
+    <script>
+    document.getElementById('start').onclick = async () => {
+        const pipeline = document.getElementById('pipeline').value;
+        await fetch('/start-gstreamer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pipeline})
+        });
+        const img = document.getElementById('stream');
+        img.src = '/video';
+        img.style.display = 'block';
+    };
+    document.getElementById('stop').onclick = async () => {
+        await fetch('/stop-gstreamer', {method: 'POST'});
+        const img = document.getElementById('stream');
+        img.src = '';
+        img.style.display = 'none';
+    };
+    </script>
+</body>
+</html>
