@@ -12,6 +12,9 @@ const path = require("path");
 // In-memory store of the last 100 RockBLOCK related log lines
 const rockLogs = [];
 
+// Store up to the last 200 battery JSON payloads
+const batteryMessages = [];
+
 function rockLog(...args) {
     const msg = args
         .map(a => (typeof a === "string" ? a : util.inspect(a)))
@@ -249,6 +252,20 @@ app.get("/drone-missions", (req, res) => {
 // Endpoint to view last 100 RockBLOCK logs
 app.get("/rocklog", (req, res) => {
     res.type("text/plain").send(rockLogs.slice(-100).join("\n"));
+});
+
+// Store a battery status JSON payload
+app.post("/battery", (req, res) => {
+    batteryMessages.push(req.body);
+    if (batteryMessages.length > 200) {
+        batteryMessages.splice(0, batteryMessages.length - 200);
+    }
+    res.sendStatus(200);
+});
+
+// Retrieve the last 200 battery status messages
+app.get("/battery", (req, res) => {
+    res.json(batteryMessages.slice(-200));
 });
 
 
