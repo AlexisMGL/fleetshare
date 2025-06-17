@@ -5,6 +5,9 @@ app.use(express.json());
 const fs = require("fs");
 const MISSION_FILE = "missions.json";
 const util = require("util");
+const { spawn } = require("child_process");
+const net = require("net");
+const path = require("path");
 
 // In-memory store of the last 100 RockBLOCK related log lines
 const rockLogs = [];
@@ -130,6 +133,20 @@ if (fs.existsSync(MISSION_FILE)) {
 // Chargement des missions multiples (tableau)
 let missions = [];
 
+// Gestion du processus GStreamer courant
+let gstProcess = null;
+const GST_PORT = 9001;
+const gstLogs = [];
+
+function logGst(data) {
+    const line = data.toString();
+    gstLogs.push(line);
+    if (gstLogs.length > 50) {
+        gstLogs.splice(0, gstLogs.length - 50);
+    }
+    console.log("[GST]", line.trim());
+}
+
 // Variable pour conserver la dernière position
 let latestPosition = null;
 
@@ -229,6 +246,56 @@ app.get("/drone-missions", (req, res) => {
 // Endpoint to view last 100 RockBLOCK logs
 app.get("/rocklog", (req, res) => {
     res.type("text/plain").send(rockLogs.slice(-100).join("\n"));
+});
+
+// Dernières lignes de logs GStreamer
+app.get("/gstlog", (req, res) => {
+    res.type("text/plain").send(gstLogs.slice(-50).join(""));
+});
+
+// Page webstreamer
+app.get("/webstreamer", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "webstreamer.html"));
+});
+
+// Démarrer un pipeline GStreamer fourni par l'utilisateur
+app.post("/start-gstreamer", (req, res) => {
+    const { pipeline } = req.body;
+    if (!pipeline) return res.status(400).send("pipeline manquant");
+    if (gstProcess) return res.status(400).send("pipeline déjà lancé");
+    const cmd = `gst-launch-1.0 ${pipeline} ! jpegenc ! multipartmux boundary=frame ! tcpserversink host=127.0.0.1 port=${GST_PORT}`;
+    gstLogs.length = 0;
+    console.log("Starting GStreamer:", cmd);
+    gstProcess = spawn("sh", ["-c", cmd]);
+    gstProcess.stdout.on("data", logGst);
+    gstProcess.stderr.on("data", logGst);
+    gstProcess.on("exit", code => {
+        logGst(`Process exited with code ${code}`);
+        gstProcess = null;
+    });
+    return res.sendStatus(200);
+});
+
+// Arrêter le pipeline GStreamer en cours
+app.post("/stop-gstreamer", (req, res) => {
+    if (gstProcess) {
+        gstProcess.kill("SIGTERM");
+        gstProcess = null;
+        logGst("Process stopped");
+    }
+    res.sendStatus(200);
+});
+
+// Endpoint pour diffuser le flux MJPEG produit par GStreamer
+app.get("/video", (req, res) => {
+    if (!gstProcess) return res.status(404).send("no stream");
+    res.writeHead(200, {
+        "Content-Type": "multipart/x-mixed-replace; boundary=frame"
+    });
+    const client = net.connect(GST_PORT);
+    client.on("data", chunk => res.write(chunk));
+    client.on("end", () => res.end());
+    req.on("close", () => client.destroy());
 });
 
 app.use(express.static("public"));
