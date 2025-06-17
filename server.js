@@ -134,16 +134,17 @@ if (fs.existsSync(MISSION_FILE)) {
 let missions = [];
 
 // Gestion du processus GStreamer courant
-let gstProcess = null;
-const GST_PORT = 9001;
+let streamProcess = null;
+const STREAM_MJPEG_PORT = 9001;
+const DRONE_STREAM_PORT = 5000; // udpsink host=<server_ip> port=5000
 
-const gstLogs = [];
+const streamLogs = [];
 
-function logGst(data) {
+function logStream(data) {
     const line = data.toString();
-    gstLogs.push(line);
-    if (gstLogs.length > 50) {
-        gstLogs.splice(0, gstLogs.length - 50);
+    streamLogs.push(line);
+    if (streamLogs.length > 50) {
+        streamLogs.splice(0, streamLogs.length - 50);
     }
     console.log("[GST]", line.trim());
 }
@@ -251,56 +252,52 @@ app.get("/rocklog", (req, res) => {
 });
 
 
-// Dernières lignes de logs GStreamer
-app.get("/gstlog", (req, res) => {
-    res.type("text/plain").send(gstLogs.slice(-50).join(""));
+// Dernières lignes de logs du pipeline vidéo
+app.get("/stream/log", (req, res) => {
+    res.type("text/plain").send(streamLogs.slice(-50).join(""));
 });
-
 
 // Page webstreamer
 app.get("/webstreamer", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "webstreamer.html"));
 });
 
-// Démarrer un pipeline GStreamer fourni par l'utilisateur
-app.post("/start-gstreamer", (req, res) => {
+// Lancer un pipeline GStreamer
+app.post("/stream/start", (req, res) => {
     const { pipeline } = req.body;
     if (!pipeline) return res.status(400).send("pipeline manquant");
-    if (gstProcess) return res.status(400).send("pipeline déjà lancé");
-    const cmd = `gst-launch-1.0 ${pipeline} ! jpegenc ! multipartmux boundary=frame ! tcpserversink host=127.0.0.1 port=${GST_PORT}`;
+    if (streamProcess) return res.status(400).send("pipeline déjà lancé");
+    const cmd = `gst-launch-1.0 ${pipeline} ! jpegenc ! multipartmux boundary=frame ! tcpserversink host=127.0.0.1 port=${STREAM_MJPEG_PORT}`;
 
-    gstLogs.length = 0;
+    streamLogs.length = 0;
     console.log("Starting GStreamer:", cmd);
-    gstProcess = spawn("sh", ["-c", cmd]);
-    gstProcess.stdout.on("data", logGst);
-    gstProcess.stderr.on("data", logGst);
-    gstProcess.on("exit", code => {
-        logGst(`Process exited with code ${code}`);
-
-        gstProcess = null;
+    streamProcess = spawn("sh", ["-c", cmd]);
+    streamProcess.stdout.on("data", logStream);
+    streamProcess.stderr.on("data", logStream);
+    streamProcess.on("exit", code => {
+        logStream(`Process exited with code ${code}`);
+        streamProcess = null;
     });
     return res.sendStatus(200);
 });
 
-// Arrêter le pipeline GStreamer en cours
-app.post("/stop-gstreamer", (req, res) => {
-    if (gstProcess) {
-        gstProcess.kill("SIGTERM");
-        gstProcess = null;
-
-        logGst("Process stopped");
-
+// Arrêter le pipeline
+app.post("/stream/stop", (req, res) => {
+    if (streamProcess) {
+        streamProcess.kill("SIGTERM");
+        streamProcess = null;
+        logStream("Process stopped");
     }
     res.sendStatus(200);
 });
 
-// Endpoint pour diffuser le flux MJPEG produit par GStreamer
-app.get("/video", (req, res) => {
-    if (!gstProcess) return res.status(404).send("no stream");
+// Flux MJPEG produit par GStreamer
+app.get("/stream/video", (req, res) => {
+    if (!streamProcess) return res.status(404).send("no stream");
     res.writeHead(200, {
         "Content-Type": "multipart/x-mixed-replace; boundary=frame"
     });
-    const client = net.connect(GST_PORT);
+    const client = net.connect(STREAM_MJPEG_PORT);
     client.on("data", chunk => res.write(chunk));
     client.on("end", () => res.end());
     req.on("close", () => client.destroy());
