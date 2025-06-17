@@ -25,6 +25,7 @@
         img.src = '/video';
         img.style.display = 'block';
         updateLog();
+
     };
     document.getElementById('stop').onclick = async () => {
         await fetch('/stop-gstreamer', {method: 'POST'});
@@ -40,6 +41,7 @@
     }
 
     setInterval(updateLog, 2000);
+    };
     </script>
 </body>
 </html>

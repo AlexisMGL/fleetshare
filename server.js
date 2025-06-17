@@ -136,6 +136,7 @@ let missions = [];
 // Gestion du processus GStreamer courant
 let gstProcess = null;
 const GST_PORT = 9001;
+
 const gstLogs = [];
 
 function logGst(data) {
@@ -146,6 +147,7 @@ function logGst(data) {
     }
     console.log("[GST]", line.trim());
 }
+
 
 // Variable pour conserver la dernière position
 let latestPosition = null;
@@ -248,10 +250,12 @@ app.get("/rocklog", (req, res) => {
     res.type("text/plain").send(rockLogs.slice(-100).join("\n"));
 });
 
+
 // Dernières lignes de logs GStreamer
 app.get("/gstlog", (req, res) => {
     res.type("text/plain").send(gstLogs.slice(-50).join(""));
 });
+
 
 // Page webstreamer
 app.get("/webstreamer", (req, res) => {
@@ -264,6 +268,7 @@ app.post("/start-gstreamer", (req, res) => {
     if (!pipeline) return res.status(400).send("pipeline manquant");
     if (gstProcess) return res.status(400).send("pipeline déjà lancé");
     const cmd = `gst-launch-1.0 ${pipeline} ! jpegenc ! multipartmux boundary=frame ! tcpserversink host=127.0.0.1 port=${GST_PORT}`;
+
     gstLogs.length = 0;
     console.log("Starting GStreamer:", cmd);
     gstProcess = spawn("sh", ["-c", cmd]);
@@ -271,6 +276,7 @@ app.post("/start-gstreamer", (req, res) => {
     gstProcess.stderr.on("data", logGst);
     gstProcess.on("exit", code => {
         logGst(`Process exited with code ${code}`);
+
         gstProcess = null;
     });
     return res.sendStatus(200);
@@ -281,7 +287,9 @@ app.post("/stop-gstreamer", (req, res) => {
     if (gstProcess) {
         gstProcess.kill("SIGTERM");
         gstProcess = null;
+
         logGst("Process stopped");
+
     }
     res.sendStatus(200);
 });
