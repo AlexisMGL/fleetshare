@@ -12,6 +12,7 @@
     <div>
         <img id="stream" style="max-width:100%; display:none;" />
     </div>
+    <pre id="log" style="background:#eee;max-height:200px;overflow:auto"></pre>
     <script>
     document.getElementById('start').onclick = async () => {
         const pipeline = document.getElementById('pipeline').value;
@@ -23,12 +24,23 @@
         const img = document.getElementById('stream');
         img.src = '/video';
         img.style.display = 'block';
+        updateLog();
+
     };
     document.getElementById('stop').onclick = async () => {
         await fetch('/stop-gstreamer', {method: 'POST'});
         const img = document.getElementById('stream');
         img.src = '';
         img.style.display = 'none';
+        updateLog();
+    };
+
+    async function updateLog() {
+        const logText = await fetch('/gstlog').then(r => r.text());
+        document.getElementById('log').textContent = logText;
+    }
+
+    setInterval(updateLog, 2000);
     };
     </script>
 </body>
