@@ -143,6 +143,27 @@ const DRONE_STREAM_PORT = 5000; // udpsink host=<server_ip> port=5000
 
 const streamLogs = [];
 
+// Latest JPEG frame captured from the GStreamer pipeline
+let latestFrame = null;
+let frameClient = null;
+let frameBuffer = Buffer.alloc(0);
+const FRAME_BOUNDARY = Buffer.from('--frame');
+
+function parseFrames() {
+    let idx;
+    while ((idx = frameBuffer.indexOf(FRAME_BOUNDARY)) !== -1) {
+        if (idx > 0) {
+            frameBuffer = frameBuffer.slice(idx);
+        }
+        const headerEnd = frameBuffer.indexOf('\r\n\r\n');
+        if (headerEnd === -1) break;
+        const next = frameBuffer.indexOf(FRAME_BOUNDARY, headerEnd + 4);
+        if (next === -1) break;
+        latestFrame = Buffer.from(frameBuffer.slice(headerEnd + 4, next));
+        frameBuffer = frameBuffer.slice(next);
+    }
+}
+
 function logStream(data) {
     const line = data.toString();
     streamLogs.push(line);
@@ -279,6 +300,11 @@ app.get("/webstreamer", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "webstreamer.html"));
 });
 
+// Page webviewer (snapshot view)
+app.get("/webviewer", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "webviewer.html"));
+});
+
 // Lancer un pipeline GStreamer
 app.post("/stream/start", (req, res) => {
     const { pipeline } = req.body;
@@ -291,9 +317,21 @@ app.post("/stream/start", (req, res) => {
     streamProcess = spawn("sh", ["-c", cmd]);
     streamProcess.stdout.on("data", logStream);
     streamProcess.stderr.on("data", logStream);
+    frameBuffer = Buffer.alloc(0);
+    latestFrame = null;
+    frameClient = net.connect(STREAM_MJPEG_PORT);
+    frameClient.on("data", chunk => {
+        frameBuffer = Buffer.concat([frameBuffer, chunk]);
+        parseFrames();
+    });
+    frameClient.on("end", () => { frameClient = null; });
     streamProcess.on("exit", code => {
         logStream(`Process exited with code ${code}`);
         streamProcess = null;
+        if (frameClient) {
+            frameClient.destroy();
+            frameClient = null;
+        }
     });
     return res.sendStatus(200);
 });
@@ -304,8 +342,22 @@ app.post("/stream/stop", (req, res) => {
         streamProcess.kill("SIGTERM");
         streamProcess = null;
         logStream("Process stopped");
+        if (frameClient) {
+            frameClient.destroy();
+            frameClient = null;
+        }
     }
     res.sendStatus(200);
+});
+
+// Dernière image JPEG capturée
+app.get("/video", (req, res) => {
+    if (!latestFrame) return res.status(404).send("no frame");
+    res.writeHead(200, {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+    });
+    res.end(latestFrame);
 });
 
 // Flux MJPEG produit par GStreamer
