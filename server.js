@@ -319,7 +319,8 @@ app.post("/stream/start", (req, res) => {
     streamProcess.stderr.on("data", logStream);
     frameBuffer = Buffer.alloc(0);
     latestFrame = null;
-    frameClient = net.connect(STREAM_MJPEG_PORT);
+    // Explicitly use IPv4 loopback to avoid resolving to ::1 on some systems
+    frameClient = net.connect(STREAM_MJPEG_PORT, "127.0.0.1");
     frameClient.on("data", chunk => {
         frameBuffer = Buffer.concat([frameBuffer, chunk]);
         parseFrames();
@@ -366,7 +367,8 @@ app.get("/stream/video", (req, res) => {
     res.writeHead(200, {
         "Content-Type": "multipart/x-mixed-replace; boundary=frame"
     });
-    const client = net.connect(STREAM_MJPEG_PORT);
+    // Ensure we connect over IPv4 to match tcpserversink binding
+    const client = net.connect(STREAM_MJPEG_PORT, "127.0.0.1");
     client.on("data", chunk => res.write(chunk));
     client.on("end", () => res.end());
     req.on("close", () => client.destroy());
