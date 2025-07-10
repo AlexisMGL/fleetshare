@@ -15,6 +15,9 @@ const rockLogs = [];
 // Store up to the last 200 battery JSON payloads
 const batteryMessages = [];
 
+// Store the most recent message posted to /rockremote
+let lastRockRemoteMessage = null;
+
 function rockLog(...args) {
     const msg = args
         .map(a => (typeof a === "string" ? a : util.inspect(a)))
@@ -287,6 +290,20 @@ app.post("/battery", (req, res) => {
 // Retrieve the last 200 battery status messages
 app.get("/battery", (req, res) => {
     res.json(batteryMessages.slice(-200));
+});
+
+// Store and display the most recent JSON message posted to /rockremote
+app.post("/rockremote", (req, res) => {
+    lastRockRemoteMessage = req.body;
+    res.sendStatus(200);
+});
+
+app.get("/rockremote", (req, res) => {
+    if (lastRockRemoteMessage) {
+        res.json(lastRockRemoteMessage);
+    } else {
+        res.status(204).send();
+    }
 });
 
 
