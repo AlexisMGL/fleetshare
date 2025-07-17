@@ -17,6 +17,8 @@ const batteryMessages = [];
 
 // Store the most recent message posted to /rockremote
 let lastRockRemoteMessage = null;
+// Store the most recent message posted to /test
+let lastTestMessage = null;
 
 function rockLog(...args) {
     const msg = args
@@ -301,6 +303,20 @@ app.post("/rockremote", (req, res) => {
 app.get("/rockremote", (req, res) => {
     if (lastRockRemoteMessage) {
         res.json(lastRockRemoteMessage);
+    } else {
+        res.status(204).send();
+    }
+});
+
+// Store and retrieve JSON messages via /test
+app.post("/test", (req, res) => {
+    lastTestMessage = req.body;
+    res.sendStatus(200);
+});
+
+app.get("/test", (req, res) => {
+    if (lastTestMessage) {
+        res.json(lastTestMessage);
     } else {
         res.status(204).send();
     }
