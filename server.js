@@ -409,6 +409,8 @@ app.get("/stream/video", (req, res) => {
 
 app.use(express.static("public"));
 
-app.listen(process.env.PORT || 3000, () => {
-    console.log("Serveur HTTP prêt sur le port", process.env.PORT || 3000);
+const HTTP_PORT = process.env.PORT || 3000;
+// Bind explicitly to 0.0.0.0 so the server is reachable in containerized environments
+app.listen(HTTP_PORT, "0.0.0.0", () => {
+    console.log("Serveur HTTP prêt sur le port", HTTP_PORT);
 });
