@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
     <script src="https://api.windy.com/assets/map-forecast/libBoot.js"></script>
     <script src="https://unpkg.com/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         html, body {
@@ -58,12 +59,52 @@
             z-index: 1000;
         }
 
+        #testRouteBtn {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 6px 10px;
+        }
+
+        #testRouteModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        #testRouteModalContent {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 600px;
+            width: 90%;
+        }
+
     </style>
 </head>
 <body>
     <div id="windy"></div>
     <div id="loading">Loading</div>
     <div id="dashboard"></div>
+    <button id="testRouteBtn">Test Route</button>
+    <div id="testRouteModal">
+        <div id="testRouteModalContent">
+            <input type="file" id="routeFileInput" accept=".txt,.waypoint,.waypoints"><br/>
+            <label>Heure de départ: <input type="time" id="departureTime"></label><br/>
+            <button id="runTest">Lancer</button>
+            <button id="closeModal">Fermer</button>
+            <canvas id="routeChart" style="max-width:100%;height:300px;"></canvas>
+            <div id="testResult" style="font-size:20px;margin-top:10px;"></div>
+        </div>
+    </div>
 
     <script>
         let windy_options = {
@@ -431,6 +472,143 @@
                     updateDashboard();
                 });
         }
+
+        // -------- Test Route logic ---------
+        function parseQgcFile(text) {
+            const lines = text.trim().split(/\r?\n/);
+            const wpts = [];
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].trim().split(/\s+/);
+                if (cols.length >= 11) {
+                    wpts.push({
+                        lat: parseFloat(cols[8]),
+                        lon: parseFloat(cols[9]),
+                        alt: parseFloat(cols[10])
+                    });
+                }
+            }
+            return wpts;
+        }
+
+        async function getElevation(lat, lon) {
+            try {
+                const r = await fetch(`https://api.opentopodata.org/v1/test-dataset?locations=${lat},${lon}`);
+                const j = await r.json();
+                return j.results[0].elevation;
+            } catch (e) {
+                console.error('elevation', e);
+                return 0;
+            }
+        }
+
+        function parseTime(str) {
+            const [h, m] = str.split(':').map(Number);
+            const d = new Date();
+            d.setHours(h, m, 0, 0);
+            return d.getTime();
+        }
+
+        async function getMaxGust(lat, lon, startTs, endTs) {
+            const body = {
+                lat,
+                lon,
+                model: 'gfs',
+                parameters: ['windGust'],
+                key: 'N3vTX5PijkaL9dg3rTIqj628Nw5gQqqu'
+            };
+            const res = await fetch('https://api.windy.com/api/point-forecast/v2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            const times = data.ts || [];
+            const gusts = data['gust-surface'] || [];
+            let max = 0;
+            for (let i = 0; i < times.length; i++) {
+                if (times[i] >= startTs && times[i] <= endTs) {
+                    const g = gusts[i];
+                    if (g != null && g > max) max = g;
+                }
+            }
+            return max;
+        }
+
+        async function runRouteTest() {
+            const fileInput = document.getElementById('routeFileInput');
+            if (!fileInput.files.length) { alert('Choisir un fichier'); return; }
+            const text = await fileInput.files[0].text();
+            const waypoints = parseQgcFile(text);
+            if (!waypoints.length) { alert('Fichier invalide'); return; }
+            const depTime = document.getElementById('departureTime').value;
+            if (!depTime) { alert('Heure manquante'); return; }
+            const startTs = parseTime(depTime);
+            const endTs = startTs + 3 * 3600 * 1000;
+
+            const baseAlt = await getElevation(waypoints[0].lat, waypoints[0].lon);
+            const distances = [0];
+            for (let i = 1; i < waypoints.length; i++) {
+                const d = L.latLng(waypoints[i-1].lat, waypoints[i-1].lon)
+                    .distanceTo([waypoints[i].lat, waypoints[i].lon]);
+                distances[i] = distances[i-1] + d;
+            }
+
+            const gusts = [];
+            for (const wp of waypoints) {
+                const g = await getMaxGust(wp.lat, wp.lon, startTs, endTs);
+                gusts.push(g);
+            }
+
+            const ctx = document.getElementById('routeChart').getContext('2d');
+            if (window.routeChart) window.routeChart.destroy();
+            window.routeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: distances.map(d => (d/1000).toFixed(1)),
+                    datasets: [
+                        {
+                            label: 'Altitude (m)',
+                            data: waypoints.map(w => w.alt),
+                            borderColor: 'blue',
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Rafales (m/s)',
+                            data: gusts,
+                            borderColor: 'red',
+                            yAxisID: 'y2'
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y1: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: 'Altitude rel. (m)' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'Rafales (m/s)' }
+                        }
+                    }
+                }
+            });
+
+            const maxG = Math.max(...gusts);
+            const result = document.getElementById('testResult');
+            result.textContent = maxG < 9 ? 'OK' : 'NON';
+            result.style.color = maxG < 9 ? 'green' : 'red';
+        }
+
+        document.getElementById('testRouteBtn').addEventListener('click', () => {
+            document.getElementById('testRouteModal').style.display = 'flex';
+        });
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('testRouteModal').style.display = 'none';
+        });
+        document.getElementById('runTest').addEventListener('click', runRouteTest);
 
 
 
