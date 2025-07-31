@@ -429,7 +429,7 @@
         setInterval(async () => {
             try {
                 const response = await fetch('/drone-position');
-                if (!response.ok) return;
+                if (!response.ok || response.status === 204) return;
                 const msg = await response.json();
                 update_pos(msg);
             } catch (e) {
