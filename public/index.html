@@ -514,6 +514,7 @@
                 lon,
                 model: 'gfs',
                 parameters: ['windGust'],
+                levels: ['surface'],
                 key: 'N3vTX5PijkaL9dg3rTIqj628Nw5gQqqu'
             };
             const res = await fetch('https://api.windy.com/api/point-forecast/v2', {
@@ -521,6 +522,12 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+
+            if (!res.ok) {
+                console.error('Windy API error', res.status, await res.text());
+                return 0;
+            }
+
             const data = await res.json();
             const times = data.ts || [];
             const gusts = data['gust-surface'] || [];
