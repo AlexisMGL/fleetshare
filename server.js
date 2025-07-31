@@ -297,6 +297,7 @@ app.get("/battery", (req, res) => {
 
 // Proxy elevation requests to OpenTopodata to avoid CORS issues
 app.get("/elevation", async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
     const { lat, lon } = req.query;
     if (!lat || !lon) return res.status(400).send("missing lat or lon");
     try {
@@ -307,7 +308,7 @@ app.get("/elevation", async (req, res) => {
         res.json({ elevation: j.results?.[0]?.elevation ?? 0 });
     } catch (e) {
         console.error("elevation proxy", e);
-        res.status(500).send("error");
+        res.json({ elevation: 0 });
     }
 });
 
