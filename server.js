@@ -8,6 +8,7 @@ const util = require("util");
 const { spawn } = require("child_process");
 const net = require("net");
 const path = require("path");
+// global fetch is available in Node 18+
 
 // In-memory store of the last 100 RockBLOCK related log lines
 const rockLogs = [];
@@ -292,6 +293,22 @@ app.post("/battery", (req, res) => {
 // Retrieve the last 200 battery status messages
 app.get("/battery", (req, res) => {
     res.json(batteryMessages.slice(-200));
+});
+
+// Proxy elevation requests to OpenTopodata to avoid CORS issues
+app.get("/elevation", async (req, res) => {
+    const { lat, lon } = req.query;
+    if (!lat || !lon) return res.status(400).send("missing lat or lon");
+    try {
+        const url = `https://api.opentopodata.org/v1/test-dataset?locations=${lat},${lon}`;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`remote ${r.status}`);
+        const j = await r.json();
+        res.json({ elevation: j.results?.[0]?.elevation ?? 0 });
+    } catch (e) {
+        console.error("elevation proxy", e);
+        res.status(500).send("error");
+    }
 });
 
 // Store and display the most recent JSON message posted to /rockremote

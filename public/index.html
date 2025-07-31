@@ -492,9 +492,9 @@
 
         async function getElevation(lat, lon) {
             try {
-                const r = await fetch(`https://api.opentopodata.org/v1/test-dataset?locations=${lat},${lon}`);
+                const r = await fetch(`/elevation?lat=${lat}&lon=${lon}`);
                 const j = await r.json();
-                return j.results[0].elevation;
+                return j.elevation;
             } catch (e) {
                 console.error('elevation', e);
                 return 0;
@@ -567,7 +567,9 @@
             }
 
             const ctx = document.getElementById('routeChart').getContext('2d');
-            if (window.routeChart) window.routeChart.destroy();
+            if (window.routeChart && typeof window.routeChart.destroy === 'function') {
+                window.routeChart.destroy();
+            }
             window.routeChart = new Chart(ctx, {
                 type: 'line',
                 data: {
