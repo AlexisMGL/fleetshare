@@ -61,7 +61,7 @@
 
         #testRouteBtn {
             position: absolute;
-            bottom: 10px;
+            top: 70px; /* just below the dashboard */
             left: 10px;
             z-index: 1000;
             padding: 6px 10px;
@@ -86,6 +86,20 @@
             border-radius: 5px;
             max-width: 600px;
             width: 90%;
+        }
+
+        #testRouteModalContent input,
+        #testRouteModalContent button {
+            margin: 5px 0;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+
+        #testResult {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
         }
 
     </style>
@@ -479,7 +493,7 @@
             const wpts = [];
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].trim().split(/\s+/);
-                if (cols.length >= 11) {
+                if (cols.length >= 11 && parseInt(cols[3], 10) === 16) {
                     wpts.push({
                         lat: parseFloat(cols[8]),
                         lon: parseFloat(cols[9]),
@@ -591,6 +605,9 @@
                 },
                 options: {
                     scales: {
+                        x: {
+                            title: { display: true, text: 'Distance (km)' }
+                        },
                         y1: {
                             type: 'linear',
                             position: 'left',
@@ -607,8 +624,13 @@
 
             const maxG = Math.max(...gusts);
             const result = document.getElementById('testResult');
-            result.textContent = maxG < 9 ? 'OK' : 'NON';
-            result.style.color = maxG < 9 ? 'green' : 'red';
+            if (maxG < 9) {
+                result.textContent = '✅ OK';
+                result.style.color = 'green';
+            } else {
+                result.textContent = '❌ NON';
+                result.style.color = 'red';
+            }
         }
 
         document.getElementById('testRouteBtn').addEventListener('click', () => {
