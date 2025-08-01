@@ -149,6 +149,8 @@
             width: 100%;
             height: 300px;
             margin-top: 10px;
+            overflow: hidden;
+            border: 1px solid #ccc;
         }
 
     </style>
@@ -916,6 +918,7 @@
             }
             testRoutePolyline = L.polyline(waypoints.map(w => [w.lat, w.lon]), { color: 'red' }).addTo(testRouteMap);
             testRouteMap.fitBounds(testRoutePolyline.getBounds());
+            testRouteMap.invalidateSize();
 
             const maxG = Math.max(...gusts);
             const result = document.getElementById('testResult');
@@ -932,6 +935,9 @@
 
         document.getElementById('testRouteBtn').addEventListener('click', () => {
             document.getElementById('testRouteModal').style.display = 'flex';
+            if (testRouteMap) {
+                setTimeout(() => testRouteMap.invalidateSize(), 0);
+            }
         });
         document.getElementById('closeModal').addEventListener('click', () => {
             document.getElementById('testRouteModal').style.display = 'none';
