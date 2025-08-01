@@ -84,8 +84,10 @@
             background: white;
             padding: 20px;
             border-radius: 5px;
-            max-width: 600px;
-            width: 90%;
+            width: 95%;
+            height: 90vh;
+            max-width: none;
+            overflow-y: auto;
         }
 
         #testRouteModalContent input,
@@ -165,7 +167,10 @@
                 </svg>
                 <div id="progressPercent">0%</div>
             </div>
-            <canvas id="routeChart" style="max-width:100%;height:300px;"></canvas>
+            <div id="routeMap" style="height:300px;margin-top:10px;"></div>
+            <canvas id="chart1" style="max-width:100%;height:250px;"></canvas>
+            <canvas id="chart2" style="max-width:100%;height:250px;"></canvas>
+            <canvas id="chart3" style="max-width:100%;height:250px;"></canvas>
             <div id="testResult" style="font-size:20px;margin-top:10px;"></div>
         </div>
     </div>
@@ -725,111 +730,85 @@
                 const f = await getForecastData(wp.lat, wp.lon, startTs, endTs);
                 gusts.push(f.gust);
                 winds.push(f.wind);
-                temps.push(f.temp);
+                temps.push(f.temp - 273.15);
                 precips.push(f.precip);
                 lclouds.push(f.lclouds);
                 mclouds.push(f.mclouds);
                 hclouds.push(f.hclouds);
                 inc();
             }
+            // Draw map of the route
+            document.getElementById('routeMap').innerHTML = '';
+            const routeMap = L.map('routeMap');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(routeMap);
+            const poly = L.polyline(waypoints.map(w => [w.lat, w.lon]), { color: 'blue' }).addTo(routeMap);
+            routeMap.fitBounds(poly.getBounds());
 
-            const ctx = document.getElementById('routeChart').getContext('2d');
-            if (window.routeChart && typeof window.routeChart.destroy === 'function') {
-                window.routeChart.destroy();
-            }
-            window.routeChart = new Chart(ctx, {
+            const labels = distances.map(d => (d / 1000).toFixed(1));
+
+            const ctx1 = document.getElementById('chart1').getContext('2d');
+            if (window.chart1) window.chart1.destroy();
+            window.chart1 = new Chart(ctx1, {
                 type: 'line',
                 data: {
-                    labels: distances.map(d => (d/1000).toFixed(1)),
+                    labels,
                     datasets: [
-                        {
-                            label: 'Altitude (m)',
-                            data: waypoints.map(w => w.alt),
-                            borderColor: 'blue',
-                            yAxisID: 'y1'
-                        },
-                        {
-                            label: 'Rafales (m/s)',
-                            data: gusts,
-                            borderColor: 'red',
-                            yAxisID: 'y2'
-                        },
-                        {
-                            label: 'Vent (m/s)',
-                            data: winds,
-                            borderColor: 'orange',
-                            yAxisID: 'y2'
-                        },
-                        {
-                            label: 'Précip. (mm)',
-                            data: precips,
-                            borderColor: 'green',
-                            yAxisID: 'y3'
-                        },
-                        {
-                            label: 'Température (°C)',
-                            data: temps,
-                            borderColor: 'purple',
-                            yAxisID: 'y4'
-                        },
-                        {
-                            label: 'Low clouds (%)',
-                            data: lclouds,
-                            borderColor: 'brown',
-                            yAxisID: 'y5'
-                        },
-                        {
-                            label: 'Mid clouds (%)',
-                            data: mclouds,
-                            borderColor: 'gray',
-                            yAxisID: 'y5'
-                        },
-                        {
-                            label: 'High clouds (%)',
-                            data: hclouds,
-                            borderColor: 'black',
-                            yAxisID: 'y5'
-                        }
+                        { label: 'Altitude (m)', data: waypoints.map(w => w.alt), borderColor: 'blue', yAxisID: 'y1' },
+                        { label: 'Rafales (m/s)', data: gusts, borderColor: 'red', yAxisID: 'y2' },
+                        { label: 'Vent (m/s)', data: winds, borderColor: 'orange', yAxisID: 'y2' }
                     ]
                 },
                 options: {
                     scales: {
-                        x: {
-                            title: { display: true, text: 'Distance (km)' }
-                        },
-                        y1: {
-                            type: 'linear',
-                            position: 'left',
-                            title: { display: true, text: 'Altitude rel. (m)' }
-                        },
-                        y2: {
-                            type: 'linear',
-                            position: 'right',
-                            title: { display: true, text: 'Vent/Rafales (m/s)' }
-                        },
-                        y3: {
-                            type: 'linear',
-                            position: 'left',
-                            offset: true,
-                            grid: { drawOnChartArea: false },
-                            title: { display: true, text: 'Précip. (mm)' }
-                        },
-                        y4: {
-                            type: 'linear',
-                            position: 'right',
-                            offset: true,
-                            grid: { drawOnChartArea: false },
-                            title: { display: true, text: 'Température (°C)' }
-                        },
-                        y5: {
-                            type: 'linear',
-                            position: 'left',
-                            offset: true,
-                            min: 0,
-                            max: 100,
-                            grid: { drawOnChartArea: false },
-                            title: { display: true, text: 'Nuages (%)' }
-                        }
+                        x: { title: { display: true, text: 'Distance (km)' } },
+                        y1: { type: 'linear', position: 'left', title: { display: true, text: 'Altitude (m)' } },
+                        y2: { type: 'linear', position: 'right', title: { display: true, text: 'Vent (m/s)' } }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('chart2').getContext('2d');
+            if (window.chart2) window.chart2.destroy();
+            window.chart2 = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Altitude (m)', data: waypoints.map(w => w.alt), borderColor: 'blue', yAxisID: 'y1' },
+                        { label: 'Précip. (mm)', data: precips, borderColor: 'green', yAxisID: 'y2' },
+                        { label: 'Température (°C)', data: temps, borderColor: 'purple', yAxisID: 'y3' }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Distance (km)' } },
+                        y1: { type: 'linear', position: 'left', title: { display: true, text: 'Altitude (m)' } },
+                        y2: { type: 'linear', position: 'right', title: { display: true, text: 'Pluie (mm)' } },
+                        y3: { type: 'linear', position: 'right', offset: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Température (°C)' } }
+                    }
+                }
+            });
+
+            const ctx3 = document.getElementById('chart3').getContext('2d');
+            if (window.chart3) window.chart3.destroy();
+            window.chart3 = new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Altitude (m)', data: waypoints.map(w => w.alt), borderColor: 'blue', yAxisID: 'y1' },
+                        { label: 'Low clouds (%)', data: lclouds, borderColor: 'brown', yAxisID: 'y2' },
+                        { label: 'Mid clouds (%)', data: mclouds, borderColor: 'gray', yAxisID: 'y2' },
+                        { label: 'High clouds (%)', data: hclouds, borderColor: 'black', yAxisID: 'y2' }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Distance (km)' } },
+                        y1: { type: 'linear', position: 'left', title: { display: true, text: 'Altitude (m)' } },
+                        y2: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'Nuages (%)' } }
                     }
                 }
             });
