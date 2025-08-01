@@ -145,6 +145,12 @@
             text-align: center;
         }
 
+        #routeMap {
+            width: 100%;
+            height: 300px;
+            margin-top: 10px;
+        }
+
     </style>
 </head>
 <body>
@@ -169,6 +175,7 @@
             <canvas id="routeChart1" style="max-width:100%;height:250px;"></canvas>
             <canvas id="routeChart2" style="max-width:100%;height:250px;"></canvas>
             <canvas id="routeChart3" style="max-width:100%;height:250px;"></canvas>
+            <div id="routeMap" style="width:100%;height:300px;margin-top:10px;"></div>
             <div id="testResult" style="font-size:20px;margin-top:10px;"></div>
         </div>
     </div>
@@ -184,6 +191,8 @@
         let init_done = false;
         let map = null;
         let options = null;
+        let testRouteMap = null;
+        let testRoutePolyline = null;
 
         // Initialisation locale d'options si aucun message externe n'est reçu
         if (!options) {
@@ -885,6 +894,28 @@
                     }
                 }
             });
+
+            const mapDiv = document.getElementById('routeMap');
+            if (!testRouteMap) {
+                testRouteMap = L.map(mapDiv, {
+                    zoomControl: false,
+                    attributionControl: false,
+                    dragging: false,
+                    scrollWheelZoom: false,
+                    doubleClickZoom: false,
+                    boxZoom: false,
+                    keyboard: false,
+                    touchZoom: false
+                });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(testRouteMap);
+            }
+            if (testRoutePolyline) {
+                testRouteMap.removeLayer(testRoutePolyline);
+            }
+            testRoutePolyline = L.polyline(waypoints.map(w => [w.lat, w.lon]), { color: 'red' }).addTo(testRouteMap);
+            testRouteMap.fitBounds(testRoutePolyline.getBounds());
 
             const maxG = Math.max(...gusts);
             const result = document.getElementById('testResult');
