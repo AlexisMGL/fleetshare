@@ -572,15 +572,24 @@
             return d.getTime();
         }
 
-        async function getMaxGust(lat, lon, startTs, endTs) {
+        async function getForecastData(lat, lon, startTs, endTs) {
             const body = {
                 lat,
                 lon,
                 model: 'gfs',
-                parameters: ['windGust'],
+                parameters: [
+                    'windGust',
+                    'wind',
+                    'temp',
+                    'precip',
+                    'lclouds',
+                    'mclouds',
+                    'hclouds'
+                ],
                 levels: ['surface'],
                 key: 'N3vTX5PijkaL9dg3rTIqj628Nw5gQqqu'
             };
+
             const res = await fetch('https://api.windy.com/api/point-forecast/v2', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -589,20 +598,75 @@
 
             if (!res.ok) {
                 console.error('Windy API error', res.status, await res.text());
-                return 0;
+                return {
+                    gust: 0,
+                    wind: 0,
+                    temp: 0,
+                    precip: 0,
+                    lclouds: 0,
+                    mclouds: 0,
+                    hclouds: 0
+                };
             }
 
             const data = await res.json();
             const times = data.ts || [];
             const gusts = data['gust-surface'] || [];
-            let max = 0;
+            const wu = data['wind_u-surface'] || [];
+            const wv = data['wind_v-surface'] || [];
+            const temps = data['temp-surface'] || [];
+            const precips = data['past3hprecip-surface'] || [];
+            const lc = data['lclouds-surface'] || [];
+            const mc = data['mclouds-surface'] || [];
+            const hc = data['hclouds-surface'] || [];
+
+            let maxGust = 0;
+            let maxWind = 0;
+            let maxTemp = -Infinity;
+            let maxPrecip = 0;
+            let maxLc = 0;
+            let maxMc = 0;
+            let maxHc = 0;
+
             for (let i = 0; i < times.length; i++) {
                 if (times[i] >= startTs && times[i] <= endTs) {
                     const g = gusts[i];
-                    if (g != null && g > max) max = g;
+                    if (g != null && g > maxGust) maxGust = g;
+
+                    const u = wu[i];
+                    const v = wv[i];
+                    const w =
+                        typeof u === 'number' && typeof v === 'number'
+                            ? Math.sqrt(u * u + v * v)
+                            : null;
+                    if (w != null && w > maxWind) maxWind = w;
+
+                    const t = temps[i];
+                    if (t != null && t > maxTemp) maxTemp = t;
+
+                    const p = precips[i];
+                    if (p != null && p > maxPrecip) maxPrecip = p;
+
+                    const l = lc[i];
+                    if (l != null && l > maxLc) maxLc = l;
+
+                    const m = mc[i];
+                    if (m != null && m > maxMc) maxMc = m;
+
+                    const h = hc[i];
+                    if (h != null && h > maxHc) maxHc = h;
                 }
             }
-            return max;
+
+            return {
+                gust: maxGust,
+                wind: maxWind,
+                temp: maxTemp,
+                precip: maxPrecip,
+                lclouds: maxLc,
+                mclouds: maxMc,
+                hclouds: maxHc
+            };
         }
 
         async function runRouteTest() {
@@ -651,9 +715,21 @@
             inc();
 
             const gusts = [];
+            const winds = [];
+            const temps = [];
+            const precips = [];
+            const lclouds = [];
+            const mclouds = [];
+            const hclouds = [];
             for (const wp of waypoints) {
-                const g = await getMaxGust(wp.lat, wp.lon, startTs, endTs);
-                gusts.push(g);
+                const f = await getForecastData(wp.lat, wp.lon, startTs, endTs);
+                gusts.push(f.gust);
+                winds.push(f.wind);
+                temps.push(f.temp);
+                precips.push(f.precip);
+                lclouds.push(f.lclouds);
+                mclouds.push(f.mclouds);
+                hclouds.push(f.hclouds);
                 inc();
             }
 
@@ -677,6 +753,42 @@
                             data: gusts,
                             borderColor: 'red',
                             yAxisID: 'y2'
+                        },
+                        {
+                            label: 'Vent (m/s)',
+                            data: winds,
+                            borderColor: 'orange',
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: 'Précip. (mm)',
+                            data: precips,
+                            borderColor: 'green',
+                            yAxisID: 'y3'
+                        },
+                        {
+                            label: 'Température (°C)',
+                            data: temps,
+                            borderColor: 'purple',
+                            yAxisID: 'y4'
+                        },
+                        {
+                            label: 'Low clouds (%)',
+                            data: lclouds,
+                            borderColor: 'brown',
+                            yAxisID: 'y5'
+                        },
+                        {
+                            label: 'Mid clouds (%)',
+                            data: mclouds,
+                            borderColor: 'gray',
+                            yAxisID: 'y5'
+                        },
+                        {
+                            label: 'High clouds (%)',
+                            data: hclouds,
+                            borderColor: 'black',
+                            yAxisID: 'y5'
                         }
                     ]
                 },
@@ -693,7 +805,30 @@
                         y2: {
                             type: 'linear',
                             position: 'right',
-                            title: { display: true, text: 'Rafales (m/s)' }
+                            title: { display: true, text: 'Vent/Rafales (m/s)' }
+                        },
+                        y3: {
+                            type: 'linear',
+                            position: 'left',
+                            offset: true,
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Précip. (mm)' }
+                        },
+                        y4: {
+                            type: 'linear',
+                            position: 'right',
+                            offset: true,
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Température (°C)' }
+                        },
+                        y5: {
+                            type: 'linear',
+                            position: 'left',
+                            offset: true,
+                            min: 0,
+                            max: 100,
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Nuages (%)' }
                         }
                     }
                 }
