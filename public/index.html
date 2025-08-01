@@ -741,9 +741,9 @@
             const ctx3 = document.getElementById('routeChart3').getContext('2d');
             const labels = distances.map(d => (d/1000).toFixed(1));
 
-            if (window.routeChart1) window.routeChart1.destroy();
-            if (window.routeChart2) window.routeChart2.destroy();
-            if (window.routeChart3) window.routeChart3.destroy();
+            if (window.routeChart1 && typeof window.routeChart1.destroy === 'function') window.routeChart1.destroy();
+            if (window.routeChart2 && typeof window.routeChart2.destroy === 'function') window.routeChart2.destroy();
+            if (window.routeChart3 && typeof window.routeChart3.destroy === 'function') window.routeChart3.destroy();
 
             window.routeChart1 = new Chart(ctx1, {
                 type: 'line',
