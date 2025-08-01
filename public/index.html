@@ -84,8 +84,9 @@
             background: white;
             padding: 20px;
             border-radius: 5px;
-            max-width: 600px;
-            width: 90%;
+            width: 95vw;
+            height: 90vh;
+            overflow-y: auto;
         }
 
         #testRouteModalContent input,
@@ -165,7 +166,9 @@
                 </svg>
                 <div id="progressPercent">0%</div>
             </div>
-            <canvas id="routeChart" style="max-width:100%;height:300px;"></canvas>
+            <canvas id="routeChart1" style="max-width:100%;height:250px;"></canvas>
+            <canvas id="routeChart2" style="max-width:100%;height:250px;"></canvas>
+            <canvas id="routeChart3" style="max-width:100%;height:250px;"></canvas>
             <div id="testResult" style="font-size:20px;margin-top:10px;"></div>
         </div>
     </div>
@@ -733,14 +736,19 @@
                 inc();
             }
 
-            const ctx = document.getElementById('routeChart').getContext('2d');
-            if (window.routeChart && typeof window.routeChart.destroy === 'function') {
-                window.routeChart.destroy();
-            }
-            window.routeChart = new Chart(ctx, {
+            const ctx1 = document.getElementById('routeChart1').getContext('2d');
+            const ctx2 = document.getElementById('routeChart2').getContext('2d');
+            const ctx3 = document.getElementById('routeChart3').getContext('2d');
+            const labels = distances.map(d => (d/1000).toFixed(1));
+
+            if (window.routeChart1) window.routeChart1.destroy();
+            if (window.routeChart2) window.routeChart2.destroy();
+            if (window.routeChart3) window.routeChart3.destroy();
+
+            window.routeChart1 = new Chart(ctx1, {
                 type: 'line',
                 data: {
-                    labels: distances.map(d => (d/1000).toFixed(1)),
+                    labels,
                     datasets: [
                         {
                             label: 'Altitude (m)',
@@ -759,44 +767,12 @@
                             data: winds,
                             borderColor: 'orange',
                             yAxisID: 'y2'
-                        },
-                        {
-                            label: 'Précip. (mm)',
-                            data: precips,
-                            borderColor: 'green',
-                            yAxisID: 'y3'
-                        },
-                        {
-                            label: 'Température (°C)',
-                            data: temps,
-                            borderColor: 'purple',
-                            yAxisID: 'y4'
-                        },
-                        {
-                            label: 'Low clouds (%)',
-                            data: lclouds,
-                            borderColor: 'brown',
-                            yAxisID: 'y5'
-                        },
-                        {
-                            label: 'Mid clouds (%)',
-                            data: mclouds,
-                            borderColor: 'gray',
-                            yAxisID: 'y5'
-                        },
-                        {
-                            label: 'High clouds (%)',
-                            data: hclouds,
-                            borderColor: 'black',
-                            yAxisID: 'y5'
                         }
                     ]
                 },
                 options: {
                     scales: {
-                        x: {
-                            title: { display: true, text: 'Distance (km)' }
-                        },
+                        x: { title: { display: true, text: 'Distance (km)' } },
                         y1: {
                             type: 'linear',
                             position: 'left',
@@ -806,28 +782,104 @@
                             type: 'linear',
                             position: 'right',
                             title: { display: true, text: 'Vent/Rafales (m/s)' }
+                        }
+                    }
+                }
+            });
+
+            window.routeChart2 = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Altitude (m)',
+                            data: waypoints.map(w => w.alt),
+                            borderColor: 'blue',
+                            yAxisID: 'y1'
                         },
-                        y3: {
+                        {
+                            label: 'Précip. (mm)',
+                            data: precips,
+                            borderColor: 'green',
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: 'Température (°C)',
+                            data: temps,
+                            borderColor: 'purple',
+                            yAxisID: 'y3'
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Distance (km)' } },
+                        y1: {
                             type: 'linear',
                             position: 'left',
-                            offset: true,
-                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Altitude rel. (m)' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
                             title: { display: true, text: 'Précip. (mm)' }
                         },
-                        y4: {
+                        y3: {
                             type: 'linear',
                             position: 'right',
                             offset: true,
                             grid: { drawOnChartArea: false },
                             title: { display: true, text: 'Température (°C)' }
+                        }
+                    }
+                }
+            });
+
+            window.routeChart3 = new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Altitude (m)',
+                            data: waypoints.map(w => w.alt),
+                            borderColor: 'blue',
+                            yAxisID: 'y1'
                         },
-                        y5: {
+                        {
+                            label: 'Low clouds (%)',
+                            data: lclouds,
+                            borderColor: 'brown',
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: 'Mid clouds (%)',
+                            data: mclouds,
+                            borderColor: 'gray',
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: 'High clouds (%)',
+                            data: hclouds,
+                            borderColor: 'black',
+                            yAxisID: 'y2'
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Distance (km)' } },
+                        y1: {
                             type: 'linear',
                             position: 'left',
-                            offset: true,
+                            title: { display: true, text: 'Altitude rel. (m)' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
                             min: 0,
                             max: 100,
-                            grid: { drawOnChartArea: false },
                             title: { display: true, text: 'Nuages (%)' }
                         }
                     }
