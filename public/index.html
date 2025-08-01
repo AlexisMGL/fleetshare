@@ -265,11 +265,13 @@
             loading_div.style.display = "none";
 
             const topLayer = L.tileLayer(
-                'http://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 {
-                    attribution: 'Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping',
+                    attribution: '© OpenStreetMap contributors',
                     minZoom: 12,
-                    maxZoom: 17
+                    maxZoom: 17,
+                    tileSize: 256,
+                    crossOrigin: true
                 }
             ).addTo(map);
             topLayer.setOpacity(0);
@@ -907,10 +909,13 @@
                     doubleClickZoom: false,
                     boxZoom: false,
                     keyboard: false,
-                    touchZoom: false
+                    touchZoom: false,
+                    crs: L.CRS.EPSG3857
                 });
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
+                    attribution: '© OpenStreetMap contributors',
+                    tileSize: 256,
+                    crossOrigin: true
                 }).addTo(testRouteMap);
             }
             if (testRoutePolyline) {
