@@ -95,6 +95,48 @@
             font-size: 14px;
         }
 
+        #progressContainer {
+            display: none;
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 10px auto;
+        }
+
+        #progressContainer svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        #progressPercent {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .departure-label {
+            font-weight: bold;
+        }
+
+        #departureTime {
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        #startTimeDisplay {
+            text-align: center;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
         #testResult {
             font-size: 24px;
             font-weight: bold;
@@ -112,9 +154,17 @@
     <div id="testRouteModal">
         <div id="testRouteModalContent">
             <input type="file" id="routeFileInput" accept=".txt,.waypoint,.waypoints"><br/>
-            <label>Heure de départ: <input type="time" id="departureTime"></label><br/>
+            <label class="departure-label">Heure de départ: <input type="time" id="departureTime"></label><br/>
             <button id="runTest">Lancer</button>
             <button id="closeModal">Fermer</button>
+            <div id="startTimeDisplay"></div>
+            <div id="progressContainer">
+                <svg width="100" height="100">
+                    <circle cx="50" cy="50" r="45" stroke="#eee" stroke-width="10" fill="none"></circle>
+                    <circle id="progressBar" cx="50" cy="50" r="45" stroke="#3498db" stroke-width="10" fill="none" stroke-linecap="round"></circle>
+                </svg>
+                <div id="progressPercent">0%</div>
+            </div>
             <canvas id="routeChart" style="max-width:100%;height:300px;"></canvas>
             <div id="testResult" style="font-size:20px;margin-top:10px;"></div>
         </div>
@@ -566,18 +616,45 @@
             const startTs = parseTime(depTime);
             const endTs = startTs + 3 * 3600 * 1000;
 
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const startTimeDisplay = document.getElementById('startTimeDisplay');
+
+            const radius = 45;
+            const circumference = 2 * Math.PI * radius;
+            progressBar.style.strokeDasharray = `${circumference}`;
+            progressBar.style.strokeDashoffset = `${circumference}`;
+
+            function setProgress(p) {
+                const offset = circumference * (1 - p / 100);
+                progressBar.style.strokeDashoffset = offset;
+                progressPercent.textContent = `${p}%`;
+            }
+
+            progressContainer.style.display = 'block';
+            setProgress(0);
+            startTimeDisplay.textContent = `Départ à ${depTime.replace(':', 'h')}`;
+
+            const totalSteps = waypoints.length + 2;
+            let step = 0;
+            const inc = () => { step++; setProgress(Math.min(100, Math.round(step / totalSteps * 100))); };
+
             const baseAlt = await getElevation(waypoints[0].lat, waypoints[0].lon);
+            inc();
             const distances = [0];
             for (let i = 1; i < waypoints.length; i++) {
                 const d = L.latLng(waypoints[i-1].lat, waypoints[i-1].lon)
                     .distanceTo([waypoints[i].lat, waypoints[i].lon]);
                 distances[i] = distances[i-1] + d;
             }
+            inc();
 
             const gusts = [];
             for (const wp of waypoints) {
                 const g = await getMaxGust(wp.lat, wp.lon, startTs, endTs);
                 gusts.push(g);
+                inc();
             }
 
             const ctx = document.getElementById('routeChart').getContext('2d');
@@ -631,6 +708,8 @@
                 result.textContent = '❌ NON';
                 result.style.color = 'red';
             }
+            setProgress(100);
+            progressContainer.style.display = 'none';
         }
 
         document.getElementById('testRouteBtn').addEventListener('click', () => {
